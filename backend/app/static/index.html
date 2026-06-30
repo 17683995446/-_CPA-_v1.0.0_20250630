@@ -1231,13 +1231,348 @@
             .main-content { max-width: 100%; }
             .session-progress { flex-wrap: wrap; }
         }
+
+        /* ===== 加载骨架屏 ===== */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-soft) 25%, var(--bg) 50%, var(--bg-soft) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-card {
+            padding: 24px;
+            margin-bottom: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        /* ===== 全局加载遮罩 ===== */
+        .page-loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .page-loader.show { display: flex; }
+        .page-loader .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--bg-soft);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== 答题结果横幅 ===== */
+        .answer-banner {
+            display: none;
+            padding: 16px 24px;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.4s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .answer-banner.show { display: flex; }
+        .answer-banner.correct {
+            background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.04));
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+        .answer-banner.wrong {
+            background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.04));
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        /* ===== 导航栏头像 ===== */
+        .nav-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+        }
+
+        /* ===== 复习卡片增强 ===== */
+        .review-card-enhanced {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 20px 24px;
+            margin-bottom: 12px;
+            transition: var(--transition);
+        }
+        .review-card-enhanced:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .review-card-enhanced .rc-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .review-card-enhanced .rc-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        .review-card-enhanced .rc-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .review-card-enhanced .rc-stat .rc-stat-val {
+            font-weight: 700;
+            color: var(--text);
+        }
+        .review-card-enhanced .rc-rating-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .rc-rating-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 8px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            transition: var(--transition);
+            text-align: center;
+            background: var(--card-bg);
+            font-family: inherit;
+        }
+        .rc-rating-btn:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+        .rc-rating-btn .rc-rating-label { font-size: 14px; display: block; }
+        .rc-rating-btn .rc-rating-hint { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+        .rc-rating-btn.rate-again:hover { border-color: var(--danger); color: var(--danger); }
+        .rc-rating-btn.rate-hard:hover { border-color: var(--warning); color: var(--warning); }
+        .rc-rating-btn.rate-good:hover { border-color: var(--success); color: var(--success); }
+        .rc-rating-btn.rate-easy:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ===== 分录练习增强 ===== */
+        .journal-toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .journal-toolbar .jt-btn {
+            padding: 10px 20px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            background: var(--card-bg);
+            color: var(--text-light);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+        .journal-toolbar .jt-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .balance-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .balance-indicator.balanced {
+            background: rgba(16,185,129,0.08);
+            color: var(--success);
+        }
+        .balance-indicator.unbalanced {
+            background: rgba(239,68,68,0.08);
+            color: var(--danger);
+        }
+
+        /* ===== 成就卡片增强 ===== */
+        .achievement-card-enhanced {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 28px 20px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        .achievement-card-enhanced.locked {
+            opacity: 0.5;
+            filter: grayscale(0.6);
+        }
+        .achievement-card-enhanced.unlocked {
+            border-color: var(--success);
+            background: linear-gradient(135deg, rgba(16,185,129,0.05), rgba(255,255,255,1));
+        }
+        .achievement-card-enhanced.unlocked::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--success), var(--success-light));
+        }
+        .achievement-card-enhanced:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .achievement-card-enhanced .ach-icon {
+            width: 64px; height: 64px;
+            margin: 0 auto 12px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            background: linear-gradient(135deg, var(--bg-soft), var(--bg));
+        }
+        .achievement-card-enhanced.unlocked .ach-icon {
+            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+        }
+        .achievement-card-enhanced .ach-name {
+            font-size: 15px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+        .achievement-card-enhanced .ach-desc {
+            font-size: 12px;
+            color: var(--text-light);
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .achievement-card-enhanced .ach-xp {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--primary);
+            background: rgba(99,102,241,0.08);
+            padding: 4px 14px;
+            border-radius: 20px;
+        }
+        .achievement-card-enhanced.unlocked .ach-xp {
+            color: var(--success);
+            background: rgba(16,185,129,0.08);
+        }
+        .achievement-card-enhanced .ach-lock {
+            position: absolute;
+            top: 12px; right: 12px;
+            font-size: 14px;
+            opacity: 0.5;
+        }
+
+        /* ===== 空状态增强 ===== */
+        .empty-state-enhanced {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+        .empty-state-enhanced .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+            animation: floatGently 3s ease-in-out infinite;
+        }
+        @keyframes floatGently {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .empty-state-enhanced h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-weight: 700;
+        }
+        .empty-state-enhanced p { font-size: 14px; }
+
+        /* ===== 回到顶部按钮 ===== */
+        .back-to-top {
+            position: fixed;
+            bottom: 30px; right: 30px;
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+            z-index: 200;
+            transition: var(--transition);
+        }
+        .back-to-top.show { display: flex; }
+        .back-to-top:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(99,102,241,0.5); }
+
+        /* ===== 平滑滚动 ===== */
+        html { scroll-behavior: smooth; }
+        .main-content { scroll-behavior: smooth; }
+
+        /* ===== 按钮波纹 ===== */
+        .btn { position: relative; overflow: hidden; }
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s, height 0.4s;
+        }
+        .btn:active::after { width: 300px; height: 300px; }
+
+        /* ===== 登录页品牌图标 ===== */
+        .auth-brand-icons {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 20px;
+            font-size: 28px;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
+    <div class="page-loader" id="page-loader"><div class="spinner"></div></div>
+    <button class="back-to-top" id="back-to-top" onclick="document.querySelector('.main-content').scrollTo({top:0,behavior:'smooth'})">↑</button>
 
 <!-- ===== 登录/注册页 ===== -->
 <div id="auth-page">
     <div class="auth-card">
+        <div class="auth-brand-icons">
+            <span>📊</span><span>📚</span><span>🧠</span><span>🏆</span>
+        </div>
         <h1>CPA 智学</h1>
         <p class="subtitle">注册会计师智能学习平台</p>
         <div class="auth-tabs">
@@ -1305,7 +1640,10 @@
                 <span class="icon">⭐</span>
                 <span id="nav-level">Lv.1</span>
             </div>
-            <span class="nav-user" id="nav-username"></span>
+            <div style="display:flex;align-items:center;gap:8px">
+                <div class="nav-avatar" id="nav-avatar">U</div>
+                <span class="nav-user" id="nav-username"></span>
+            </div>
             <button class="btn-logout" onclick="logout()">退出</button>
         </div>
     </div>
@@ -1479,6 +1817,7 @@
                         <div class="sp-bar"><div class="sp-fill" id="sp-fill" style="width:0%"></div></div>
                         <span class="sp-count" id="sp-count">0 题</span>
                     </div>
+                    <div class="answer-banner" id="answer-banner"></div>
                     <div class="question-card" id="question-display">
                         <!-- 动态填充 -->
                     </div>
@@ -1489,7 +1828,7 @@
             <div class="page" id="page-review">
                 <h2 class="page-title">间隔复习</h2>
                 <div id="review-content">
-                    <div class="empty-state"><div class="icon">🔁</div><h3>暂无到期卡片</h3><p>完成学习后，卡片将自动加入复习队列</p></div>
+                    <div class="empty-state-enhanced"><div class="icon">🔁</div><h3>暂无到期卡片</h3><p>完成学习后，卡片将自动加入复习队列</p></div>
                 </div>
             </div>
 
@@ -1550,8 +1889,15 @@
                 <h2 class="page-title">会计分录练习</h2>
                 <div class="journal-editor">
                     <div class="card">
-                        <h3 style="margin-bottom:16px">编制会计分录</h3>
+                        <h3 style="margin-bottom:8px">编制会计分录</h3>
                         <p style="color:var(--text-light);font-size:13px;margin-bottom:16px">遵循借贷记账法：有借必有贷，借贷必相等</p>
+                        <div class="journal-toolbar">
+                            <button class="jt-btn" onclick="addJournalLine()">+ 添加一行</button>
+                            <button class="jt-btn" onclick="loadJournalExample()">📋 加载示例</button>
+                            <button class="jt-btn" onclick="clearJournalLines()">🗑️ 清空</button>
+                            <button class="jt-btn" onclick="updateBalanceIndicator()" style="margin-left:auto">⚖️ 检查平衡</button>
+                        </div>
+                        <div class="balance-indicator" id="balance-indicator" style="display:none"></div>
                         <div class="journal-lines" id="journal-lines">
                             <div class="journal-line">
                                 <input type="text" class="jl-account" placeholder="科目（如：银行存款）" list="account-list">
@@ -1559,13 +1905,11 @@
                                     <option value="借">借</option>
                                     <option value="贷">贷</option>
                                 </select>
-                                <input type="number" class="jl-amount" placeholder="金额" step="0.01">
-                                <button class="btn-remove-line" onclick="removeJournalLine(this)">×</button>
+                                <input type="number" class="jl-amount" placeholder="金额" step="0.01" oninput="updateBalanceIndicator()">
+                                <button class="btn-remove-line" onclick="removeJournalLine(this); updateBalanceIndicator()">×</button>
                             </div>
                         </div>
-                        <button class="btn btn-secondary" style="width:auto;padding:9px 18px;display:inline-block;margin-bottom:16px" onclick="addJournalLine()">+ 添加一行</button>
-                        <br>
-                        <button class="btn btn-primary" style="width:auto;padding:13px 36px;display:inline-block" onclick="validateJournal()">验证分录</button>
+                        <button class="btn btn-primary" style="width:auto;padding:13px 36px;display:inline-block;margin-top:8px" onclick="validateJournal()">验证分录</button>
                         <datalist id="account-list"></datalist>
                     </div>
                     <div class="journal-result" id="journal-result"></div>
@@ -1742,6 +2086,9 @@ function updateNavStats() {
     document.getElementById('nav-xp').textContent = p.total_xp || 0;
     document.getElementById('nav-streak').textContent = s.streak_count || 0;
     document.getElementById('nav-level').textContent = `Lv.${l.level || 1}`;
+    // 头像首字母
+    const avatarEl = document.getElementById('nav-avatar');
+    if (avatarEl) avatarEl.textContent = (currentUser.username || 'U').charAt(0).toUpperCase();
 }
 
 function showApp() {
@@ -1970,6 +2317,10 @@ function displayQuestion(q) {
     const el = document.getElementById('question-display');
     selectedOption = null;
 
+    // 隐藏上一题的答题横幅
+    const banner = document.getElementById('answer-banner');
+    if (banner) banner.className = 'answer-banner';
+
     // 构建来源标签
     const sourceLabel = q.source === 'past_exam'
         ? '<span class="badge badge-exam">📜 历年真题</span>'
@@ -2054,6 +2405,13 @@ async function submitAnswer() {
             return `<p style="line-height:1.7">${line}</p>`;
         }).join('');
     document.getElementById('explanation-box').classList.add('show');
+
+    // 答题结果横幅
+    const banner = document.getElementById('answer-banner');
+    banner.className = 'answer-banner show ' + (isCorrect ? 'correct' : 'wrong');
+    banner.innerHTML = isCorrect
+        ? '<span style="font-size:22px">✅</span> 答对了！' + (currentQuestion.exam_year ? ` (${currentQuestion.exam_year}年真题)` : '')
+        : '<span style="font-size:22px">❌</span> 答错了，再接再厉';
 
     try {
         const result = await api('POST', `/api/mastery/${currentUser.id}/answer`, {
@@ -2152,32 +2510,50 @@ async function loadReviewPage() {
         const data = await api('GET', `/api/review/${currentUser.id}/due`);
         const el = document.getElementById('review-content');
         if (data.total === 0) {
-            el.innerHTML = '<div class="empty-state"><div class="icon">✅</div><h3>暂无到期卡片</h3><p>太棒了！所有卡片都已复习完毕</p></div>';
+            el.innerHTML = '<div class="empty-state-enhanced"><div class="icon">✅</div><h3>暂无到期卡片</h3><p>太棒了！所有卡片都已复习完毕</p></div>';
             return;
         }
+        const stateColors = { 'new': 'var(--primary)', 'learning': 'var(--warning)', 'review': 'var(--success)', 'relearning': 'var(--danger)' };
         el.innerHTML = `
-            <div class="card"><h3 style="margin-bottom:12px">今日待复习：${data.total} 张卡片</h3></div>
-            ${data.cards.map(c => `
-                <div class="card">
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                        <div>
-                            <span class="badge badge-type">${c.state}</span>
-                            <span style="margin-left:8px;color:var(--text-light);font-size:13px">
-                                稳定性: ${c.stability.toFixed(1)} | 重复: ${c.reps}次 | 遗忘: ${c.lapses}次
-                            </span>
+            <div class="card" style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:32px">📋</span>
+                <div>
+                    <h3 style="margin:0">今日待复习：${data.total} 张卡片</h3>
+                    <p style="margin:4px 0 0;color:var(--text-light);font-size:13px">根据FSRS间隔重复算法，以下卡片已到期</p>
+                </div>
+            </div>
+            ${data.cards.map(c => {
+                const stateColor = stateColors[c.state] || 'var(--text-light)';
+                return `
+                <div class="review-card-enhanced">
+                    <div class="rc-header">
+                        <span class="badge" style="background:${stateColor}22;color:${stateColor};font-weight:700">${c.state}</span>
+                        <div class="rc-stats">
+                            <div class="rc-stat">稳定性 <span class="rc-stat-val">${c.stability.toFixed(1)}</span></div>
+                            <div class="rc-stat">重复 <span class="rc-stat-val">${c.reps}</span></div>
+                            <div class="rc-stat">遗忘 <span class="rc-stat-val">${c.lapses}</span></div>
                         </div>
                     </div>
-                    <div style="margin-top:16px">
-                        <p style="margin-bottom:12px;color:var(--text-light);font-size:14px">你对这张卡片的记忆程度如何？</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button class="btn btn-danger" style="width:auto;padding:10px 20px" onclick="submitReview(${c.id}, 1)">完全忘了</button>
-                            <button class="btn btn-secondary" style="width:auto;padding:10px 20px;background:var(--warning);color:white;border:none" onclick="submitReview(${c.id}, 2)">有些困难</button>
-                            <button class="btn btn-success" style="width:auto;padding:10px 20px" onclick="submitReview(${c.id}, 3)">记得不错</button>
-                            <button class="btn btn-primary" style="width:auto;padding:10px 20px" onclick="submitReview(${c.id}, 4)">非常简单</button>
-                        </div>
+                    <div class="rc-rating-row">
+                        <button class="rc-rating-btn rate-again" onclick="submitReview(${c.id}, 1)">
+                            <span class="rc-rating-label">重来</span>
+                            <span class="rc-rating-hint">完全忘了</span>
+                        </button>
+                        <button class="rc-rating-btn rate-hard" onclick="submitReview(${c.id}, 2)">
+                            <span class="rc-rating-label">困难</span>
+                            <span class="rc-rating-hint">想了很久</span>
+                        </button>
+                        <button class="rc-rating-btn rate-good" onclick="submitReview(${c.id}, 3)">
+                            <span class="rc-rating-label">良好</span>
+                            <span class="rc-rating-hint">记得不错</span>
+                        </button>
+                        <button class="rc-rating-btn rate-easy" onclick="submitReview(${c.id}, 4)">
+                            <span class="rc-rating-label">简单</span>
+                            <span class="rc-rating-hint">毫不费力</span>
+                        </button>
                     </div>
                 </div>
-            `).join('')}
+            `}).join('')}
         `;
     } catch (e) {
         showToast('加载复习卡片失败', 'error');
@@ -2318,8 +2694,8 @@ function addJournalLine() {
     line.innerHTML = `
         <input type="text" class="jl-account" placeholder="科目（如：银行存款）" list="account-list">
         <select class="jl-direction"><option value="借">借</option><option value="贷">贷</option></select>
-        <input type="number" class="jl-amount" placeholder="金额" step="0.01">
-        <button class="btn-remove-line" onclick="removeJournalLine(this)">×</button>
+        <input type="number" class="jl-amount" placeholder="金额" step="0.01" oninput="updateBalanceIndicator()">
+        <button class="btn-remove-line" onclick="removeJournalLine(this); updateBalanceIndicator()">×</button>
     `;
     container.appendChild(line);
 }
@@ -2327,6 +2703,62 @@ function addJournalLine() {
 function removeJournalLine(btn) {
     const lines = document.querySelectorAll('.journal-line');
     if (lines.length > 1) btn.parentElement.remove();
+}
+
+function clearJournalLines() {
+    const container = document.getElementById('journal-lines');
+    container.innerHTML = `
+        <div class="journal-line">
+            <input type="text" class="jl-account" placeholder="科目（如：银行存款）" list="account-list">
+            <select class="jl-direction"><option value="借">借</option><option value="贷">贷</option></select>
+            <input type="number" class="jl-amount" placeholder="金额" step="0.01" oninput="updateBalanceIndicator()">
+            <button class="btn-remove-line" onclick="removeJournalLine(this); updateBalanceIndicator()">×</button>
+        </div>
+    `;
+    document.getElementById('balance-indicator').style.display = 'none';
+    document.getElementById('journal-result').className = 'journal-result';
+    document.getElementById('journal-result').innerHTML = '';
+}
+
+function loadJournalExample() {
+    const container = document.getElementById('journal-lines');
+    const example = [
+        { account: '银行存款', direction: '借', amount: 10000 },
+        { account: '实收资本', direction: '贷', amount: 10000 },
+    ];
+    container.innerHTML = example.map(e => `
+        <div class="journal-line">
+            <input type="text" class="jl-account" value="${e.account}" list="account-list">
+            <select class="jl-direction"><option value="借" ${e.direction==='借'?'selected':''}>借</option><option value="贷" ${e.direction==='贷'?'selected':''}>贷</option></select>
+            <input type="number" class="jl-amount" value="${e.amount}" step="0.01" oninput="updateBalanceIndicator()">
+            <button class="btn-remove-line" onclick="removeJournalLine(this); updateBalanceIndicator()">×</button>
+        </div>
+    `).join('');
+    updateBalanceIndicator();
+}
+
+function updateBalanceIndicator() {
+    const lines = document.querySelectorAll('.journal-line');
+    let debit = 0, credit = 0;
+    lines.forEach(line => {
+        const dir = line.querySelector('.jl-direction').value;
+        const amt = parseFloat(line.querySelector('.jl-amount').value) || 0;
+        if (dir === '借') debit += amt;
+        else credit += amt;
+    });
+    const el = document.getElementById('balance-indicator');
+    if (debit === 0 && credit === 0) {
+        el.style.display = 'none';
+        return;
+    }
+    el.style.display = 'flex';
+    if (debit === credit) {
+        el.className = 'balance-indicator balanced';
+        el.innerHTML = `<span>✅</span> 借贷平衡：借方 ${debit.toFixed(2)} = 贷方 ${credit.toFixed(2)}`;
+    } else {
+        el.className = 'balance-indicator unbalanced';
+        el.innerHTML = `<span>❌</span> 借贷不平衡：借方 ${debit.toFixed(2)} ≠ 贷方 ${credit.toFixed(2)}（差额 ${Math.abs(debit-credit).toFixed(2)}）`;
+    }
 }
 
 async function validateJournal() {
@@ -2391,17 +2823,27 @@ async function loadAchievementsPage() {
         const achievements = await api('GET', `/api/gamification/${currentUser.id}/achievements`);
         const el = document.getElementById('achievements-display');
         if (achievements.length === 0) {
-            el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🏆</div><h3>暂无成就</h3><p>持续学习解锁更多成就</p></div>';
+            el.innerHTML = '<div class="empty-state-enhanced" style="grid-column:1/-1"><div class="icon">🏆</div><h3>暂无成就</h3><p>持续学习解锁更多成就</p></div>';
             return;
         }
         const icons = { study: '📚', streak: '🔥', xp: '⚡', mastery: '🎓' };
-        el.innerHTML = achievements.map(a => `
-            <div class="achievement-card ${a.unlocked ? 'unlocked' : 'locked'}">
-                <div class="achievement-icon">${icons[a.category] || '🏆'}</div>
-                <h4>${a.name}</h4>
-                <p>${a.description}</p>
-                <div class="xp">+${a.xp_reward} XP</div>
-                ${a.unlocked ? '<div style="color:var(--success);font-size:12px;margin-top:4px;font-weight:600">已解锁 ✓</div>' : '<div style="color:var(--text-muted);font-size:12px;margin-top:4px">未解锁</div>'}
+        const unlockedCount = achievements.filter(a => a.unlocked).length;
+        el.innerHTML = `
+            <div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;grid-column:1/-1">
+                <span style="font-size:32px">🏆</span>
+                <div>
+                    <h3 style="margin:0">成就进度：${unlockedCount} / ${achievements.length}</h3>
+                    <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${unlockedCount*100/achievements.length}%"></div></div>
+                </div>
+            </div>
+        ` + achievements.map(a => `
+            <div class="achievement-card-enhanced ${a.unlocked ? 'unlocked' : 'locked'}">
+                ${a.unlocked ? '' : '<div class="ach-lock">🔒</div>'}
+                <div class="ach-icon">${icons[a.category] || '🏆'}</div>
+                <div class="ach-name">${a.name}</div>
+                <div class="ach-desc">${a.description}</div>
+                <div class="ach-xp">+${a.xp_reward} XP</div>
+                ${a.unlocked ? '<div style="color:var(--success);font-size:12px;margin-top:8px;font-weight:700">✓ 已解锁</div>' : ''}
             </div>
         `).join('');
     } catch (e) {
@@ -2686,6 +3128,41 @@ async function autoLogin() {
         localStorage.removeItem('cpa_username');
     }
 }
+
+// ===== 键盘快捷键 =====
+document.addEventListener('keydown', (e) => {
+    // 仅在学习页答题时生效
+    if (document.getElementById('study-question').style.display === 'none') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    // 数字键 1-4 选择选项
+    if (e.key >= '1' && e.key <= '4') {
+        const optIdx = parseInt(e.key) - 1;
+        const options = document.querySelectorAll('.option-item');
+        if (options[optIdx] && !selectedOption) {
+            selectOption(optIdx);
+        }
+    }
+    // Enter 提交或下一题
+    if (e.key === 'Enter') {
+        const submitBtn = document.querySelector('#action-bar .btn-primary');
+        if (submitBtn) submitBtn.click();
+    }
+});
+
+// ===== 回到顶部按钮滚动监听 =====
+document.querySelector('.main-content').addEventListener('scroll', function() {
+    const btn = document.getElementById('back-to-top');
+    if (this.scrollTop > 300) {
+        btn.classList.add('show');
+    } else {
+        btn.classList.remove('show');
+    }
+});
+
+// ===== 全局加载器辅助函数 =====
+function showLoader() { document.getElementById('page-loader').classList.add('show'); }
+function hideLoader() { document.getElementById('page-loader').classList.remove('show'); }
 </script>
 </body>
 </html>
