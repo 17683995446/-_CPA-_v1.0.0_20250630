@@ -87,15 +87,12 @@ def _gen_single_choice(
     # 重新分配标签 A/B/C/D...
     shuffled = []
     new_answer = None
-    for i, (_, c) in enumerate(all_opts):
+    for i, (orig_label, c) in enumerate(all_opts):
         new_label = labels[i]
-        is_correct = (i < len(correct_opts)) and (len(correct_opts) > 0)
-        # 判断是否为正确答案：通过内容匹配
-        if i < len(correct_opts) and (all_opts[i] in correct_opts):
-            is_correct = True
+        # 通过原始标签判断是否为正确选项（可靠，不依赖位置）
+        is_correct = (orig_label == answer)
+        if is_correct:
             new_answer = new_label
-        else:
-            is_correct = False
         shuffled.append((new_label, c, is_correct))
     # 确保 new_answer 被设置
     if new_answer is None and correct_opts:
