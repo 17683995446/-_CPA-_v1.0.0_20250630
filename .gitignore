@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.env
+.venv/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+
+# Environment secrets (do NOT commit tokens)
+.env
+.env.local
+*.pem
+*.key
+
+# Data files (large binary or generated)
+data/*.db
+data/*.db-journal
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
