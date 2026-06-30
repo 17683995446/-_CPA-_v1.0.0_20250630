@@ -237,6 +237,58 @@ def gen_accounting(db: Session, kps: dict[str, int]) -> int:
     return count
 
 
+def _import_past_exams(db: Session, code_to_id: dict[str, int], past_exams: list[dict]) -> int:
+    """
+    导入历年真题到题库。
+
+    参数：
+        db: 数据库会话
+        code_to_id: 知识点编码到ID的映射
+        past_exams: 真题数据列表
+
+    返回：成功导入的题目数量
+    """
+    count = 0
+    for exam in past_exams:
+        kp_id = code_to_id.get(exam["kp_code"])
+        if kp_id is None:
+            continue
+
+        # 检查是否已存在（避免重复导入）
+        existing = db.query(Question).filter(
+            Question.knowledge_point_id == kp_id,
+            Question.content == exam["content"],
+        ).first()
+        if existing:
+            continue
+
+        q = Question(
+            knowledge_point_id=kp_id,
+            question_type=exam["question_type"],
+            content=exam["content"],
+            answer=exam["answer"],
+            explanation=exam["explanation"],
+            difficulty=exam["difficulty"],
+            source="past_exam",
+            exam_year=exam["year"],
+            exam_point=exam["exam_point"],
+        )
+        db.add(q)
+        db.flush()
+
+        for label, content, is_correct in exam["options"]:
+            db.add(QuestionOption(
+                question_id=q.id,
+                label=label,
+                content=content,
+                is_correct=is_correct,
+            ))
+
+        count += 1
+
+    return count
+
+
 # ========== 审计科目题目生成 ==========
 
 def gen_auditing(db: Session, kps: dict[str, int]) -> int:
@@ -2921,6 +2973,13 @@ def generate_mass_questions(db: Session) -> int:
     db.commit()
     print(f"  判断题(第五批): {total - prev} 题")
 
+    # 导入历年真题
+    from app.past_exam_data import ALL_PAST_EXAMS
+    past_count = _import_past_exams(db, code_to_id, ALL_PAST_EXAMS)
+    db.commit()
+    total += past_count
+    print(f"  历年真题: {past_count} 题")
+
     # 打乱所有题目的选项顺序，避免正确答案总在A
     shuffled = _shuffle_all_options(db)
     db.commit()
@@ -2947,6 +3006,10 @@ def _shuffle_all_options(db: Session) -> int:
     count = 0
 
     for q in questions:
+        # 跳过真题，保留原始选项顺序
+        if q.source == "past_exam":
+            continue
+
         opts = list(q.options)
         if len(opts) <= 1:
             continue
@@ -3209,13 +3272,17 @@ def _tag_exam_info(db: Session) -> int:
     }
 
     for q in questions:
+        # 跳过已标记为真题的题目，保留其原始标注
+        if q.source == "past_exam":
+            continue
+
         kp = q.knowledge_point
         kp_name = kp.name if kp else "综合知识点"
 
         # 考点直接使用知识点名称的映射，确保考点与题目内容一致
         q.exam_point = kp_to_exam_point.get(kp_name, kp_name)
 
-        # 所有题目统一标记为模拟题（模板生成，非真实考题）
+        # 模拟题统一标记来源
         q.source = "mock"
         q.exam_year = None
 
