@@ -273,6 +273,15 @@ def _import_past_exams(db: Session, code_to_id: dict[str, int], past_exams: list
             exam_year=exam["year"],
             exam_point=exam["exam_point"],
         )
+
+        # 单选题校验：确保 answer 与 is_correct 的 label 一致
+        if exam["question_type"] == "single_choice":
+            correct_label = next(
+                (label for label, _, ic in exam["options"] if ic), None
+            )
+            if correct_label and exam["answer"] != correct_label:
+                q.answer = correct_label  # 自动修正 answer 字段
+
         db.add(q)
         db.flush()
 
@@ -2997,12 +3006,12 @@ def generate_mass_questions(db: Session) -> int:
 
 def _shuffle_all_options(db: Session) -> int:
     """
-    打乱所有单选题的选项顺序，并更新 answer 字段。
-    判断题只有2个固定选项(正确/错误)，也做随机交换。
+    打乱单选题的选项内容顺序，确保正确答案不总是第一个。
+
+    核心思路：保持 label 固定为 A/B/C/D（按 rowid 顺序），
+    只交换 content 和 is_correct 字段，避免标签与行顺序错乱。
     """
     questions = db.query(Question).all()
-    labels_4 = ["A", "B", "C", "D"]
-    labels_2 = ["A", "B"]
     count = 0
 
     for q in questions:
@@ -3014,36 +3023,24 @@ def _shuffle_all_options(db: Session) -> int:
         if len(opts) <= 1:
             continue
 
-        # 找到正确选项
-        correct_opt = None
-        for o in opts:
-            if o.is_correct:
-                correct_opt = o
-                break
-        if correct_opt is None:
-            continue
+        # 提取所有选项的内容和正确性标记
+        contents = [o.content for o in opts]
+        correct_flags = [o.is_correct for o in opts]
 
-        # 随机打乱
-        random.shuffle(opts)
+        # 打乱内容和正确性标记（同步打乱，保持对应关系）
+        paired = list(zip(contents, correct_flags))
+        random.shuffle(paired)
 
-        # 重新分配标签
-        if len(opts) == 2:
-            new_labels = labels_2
-        elif len(opts) == 4:
-            new_labels = labels_4
-        else:
-            new_labels = labels_4[:len(opts)]
-
+        # 将打乱后的内容写回，label 保持 A/B/C/D 不变
+        new_answer = None
         for i, opt in enumerate(opts):
-            opt.label = new_labels[i]
+            opt.content, opt.is_correct = paired[i]
+            if opt.is_correct and q.question_type != "judgment":
+                new_answer = opt.label
 
         # 更新 answer 字段
-        if q.question_type == "judgment":
-            # 判断题的 answer 是 "正确"/"错误"，不需要改
-            pass
-        else:
-            # 单选题的 answer 是选项标签
-            q.answer = correct_opt.label
+        if q.question_type != "judgment" and new_answer:
+            q.answer = new_answer
 
         count += 1
 

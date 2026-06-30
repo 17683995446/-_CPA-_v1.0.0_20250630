@@ -48,7 +48,9 @@ def question_to_response(q: "Question") -> QuestionResponse:
     将 ORM Question 模型转换为 QuestionResponse。
 
     消除路由层4处重复的 QuestionResponse 构造逻辑。
+    选项按 label 排序，确保前端始终显示 A/B/C/D 顺序。
     """
+    sorted_options = sorted(q.options, key=lambda o: o.label)
     return QuestionResponse(
         question_type=q.question_type,
         content=q.content,
@@ -61,7 +63,7 @@ def question_to_response(q: "Question") -> QuestionResponse:
                 content=o.content,
                 is_correct=o.is_correct,
             )
-            for o in q.options
+            for o in sorted_options
         ],
         knowledge_point_code="",
         cognitive_level="understand",
