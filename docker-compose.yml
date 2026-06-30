@@ -1,0 +1,28 @@
+# CPA学习系统 - Docker Compose 配置
+# 启动: docker-compose up -d
+# 停止: docker-compose down
+# 查看日志: docker-compose logs -f
+
+version: '3.8'
+
+services:
+  cpa-app:
+    build: .
+    container_name: cpa-learning
+    ports:
+      - "80:80"
+    volumes:
+      # 持久化数据库（防止容器重建后数据丢失）
+      - cpa-data:/app/data
+    restart: always
+    environment:
+      - AUTO_SEED_ON_STARTUP=false
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  cpa-data:
