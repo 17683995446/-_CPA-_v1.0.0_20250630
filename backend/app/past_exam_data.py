@@ -691,17 +691,38 @@ from app.past_exam_data_ext import (
     STRATEGY_EXAMS_EXT,
 )
 
+from app.past_exam_data_ext2_accounting_audit import (
+    ACCOUNTING_EXAMS_EXT2,
+    AUDIT_EXAMS_EXT2,
+)
+
+from app.past_exam_data_ext2_fcm_tax import (
+    FCM_EXAMS_EXT2,
+    TAX_EXAMS_EXT2,
+)
+
+from app.past_exam_data_ext2_law_strategy import (
+    LAW_EXAMS_EXT2,
+    STRATEGY_EXAMS_EXT2,
+)
+
 ALL_PAST_EXAMS = (
     ACCOUNTING_EXAMS
     + ACCOUNTING_EXAMS_EXT
+    + ACCOUNTING_EXAMS_EXT2
     + AUDIT_EXAMS
     + AUDIT_EXAMS_EXT
+    + AUDIT_EXAMS_EXT2
     + FCM_EXAMS
     + FCM_EXAMS_EXT
+    + FCM_EXAMS_EXT2
     + TAX_EXAMS
     + TAX_EXAMS_EXT
+    + TAX_EXAMS_EXT2
     + LAW_EXAMS
     + LAW_EXAMS_EXT
+    + LAW_EXAMS_EXT2
     + STRATEGY_EXAMS
     + STRATEGY_EXAMS_EXT
+    + STRATEGY_EXAMS_EXT2
 )
