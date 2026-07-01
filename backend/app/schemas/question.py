@@ -32,6 +32,9 @@ class QuestionResponse(BaseModel):
     content: str
     answer: str
     explanation: str
+    simple_explanation: Optional[str] = None
+    mnemonic: Optional[str] = None
+    study_tip: Optional[str] = None
     difficulty: int
     options: list[QuestionOptionResponse] = Field(default_factory=list)
     knowledge_point_code: Optional[str] = None
@@ -75,6 +78,9 @@ def question_to_response(q: "Question") -> QuestionResponse:
         content=q.content,
         answer=derived_answer,
         explanation=q.explanation or "",
+        simple_explanation=getattr(q, "simple_explanation", None),
+        mnemonic=getattr(q, "mnemonic", None),
+        study_tip=getattr(q, "study_tip", None),
         difficulty=q.difficulty,
         options=[
             QuestionOptionResponse(

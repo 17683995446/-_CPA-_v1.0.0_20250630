@@ -579,6 +579,59 @@
         .explanation-box.show { display: block; animation: fadeIn 0.4s ease; }
         .explanation-box h4 { margin-bottom: 10px; color: var(--primary); font-size: 15px; }
 
+        /* 解析四卡片模块 */
+        .expl-card {
+            margin-top: 12px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border-left: 4px solid var(--border);
+            background: var(--card-bg);
+        }
+        .expl-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .expl-card-body {
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text);
+        }
+        .expl-card-body p { margin-bottom: 4px; }
+        .expl-card-body p:last-child { margin-bottom: 0; }
+
+        /* 详细解析 - 蓝色系 */
+        .expl-detail {
+            border-left-color: #6366f1;
+            background: rgba(99,102,241,0.05);
+        }
+        .expl-detail .expl-card-title { color: #6366f1; }
+
+        /* 通俗解释 - 绿色系 */
+        .expl-simple {
+            border-left-color: #10b981;
+            background: rgba(16,185,129,0.05);
+        }
+        .expl-simple .expl-card-title { color: #10b981; }
+
+        /* 记忆口诀 - 橙色系 */
+        .expl-mnemonic {
+            border-left-color: #f59e0b;
+            background: rgba(245,158,11,0.06);
+        }
+        .expl-mnemonic .expl-card-title { color: #d97706; }
+        .expl-mnemonic .expl-card-body { font-weight: 500; }
+
+        /* 小贴士 - 紫色系 */
+        .expl-tip {
+            border-left-color: #ec4899;
+            background: rgba(236,72,153,0.04);
+        }
+        .expl-tip .expl-card-title { color: #ec4899; }
+
         .action-bar {
             display: flex;
             gap: 12px;
