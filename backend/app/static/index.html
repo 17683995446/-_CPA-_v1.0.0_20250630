@@ -3610,6 +3610,10 @@ function renderVizGraph() {
         edges = edges.filter(e => filteredIds.has(e.source) && filteredIds.has(e.target));
     }
 
+    // 数据验证：过滤掉引用不存在节点的边（防止 ECharts 内部错误）
+    const nodeIdSet = new Set(nodes.map(n => String(n.id)));
+    edges = edges.filter(e => nodeIdSet.has(String(e.source)) && nodeIdSet.has(String(e.target)));
+
     // 构造 ECharts 节点
     const echartsNodes = nodes.map(n => {
         const mastery = _vizMasteryMap[n.id] || {};
@@ -3665,22 +3669,11 @@ function renderVizGraph() {
     // 布局配置
     let layoutConfig;
     if (_vizLayout === 'force') {
-        layoutConfig = {
-            type: 'force',
-            repulsion: 200,
-            edgeLength: [80, 160],
-            gravity: 0.08,
-            friction: 0.6,
-            layoutAnimation: true,
-        };
+        layoutConfig = 'force';
     } else if (_vizLayout === 'circular') {
-        layoutConfig = { type: 'circular' };
+        layoutConfig = 'circular';
     } else {
-        layoutConfig = {
-            type: 'tree',
-            orient: 'LR',
-            layoutAnimation: true,
-        };
+        layoutConfig = 'none';
     }
 
     // 科目分类
@@ -3728,21 +3721,41 @@ function renderVizGraph() {
         }],
     };
 
-    // 树形布局需要不同的 series 配置
+    // 树形布局：用力导向布局模拟层级结构（高重力+长边）
     if (_vizLayout === 'tree') {
-        option.series[0].layout = 'none';
-        option.series[0].force = undefined;
-        // 树形布局需要 edge 的 source/target 为索引而非 id
-        const idToIdx = {};
-        echartsNodes.forEach((n, i) => { idToIdx[n.id] = i; });
-        option.series[0].links = echartsEdges.map(e => ({
-            ...e,
-            source: idToIdx[e.source] ?? e.source,
-            target: idToIdx[e.target] ?? e.target,
-        }));
+        option.series[0].layout = 'force';
+        option.series[0].force = {
+            repulsion: 300,
+            edgeLength: [120, 250],
+            gravity: 0.15,
+            layoutAnimation: true,
+        };
     }
 
-    _vizChart.setOption(option);
+    try {
+        _vizChart.setOption(option);
+    } catch (chartErr) {
+        console.error('ECharts渲染错误:', chartErr);
+        // 降级：使用最简配置重试
+        try {
+            _vizChart.dispose();
+            _vizChart = echarts.init(chartDom);
+            _vizChart.setOption({
+                series: [{
+                    type: 'graph',
+                    layout: 'force',
+                    data: echartsNodes.map(n => ({ id: n.id, name: n.name, symbolSize: 30 })),
+                    links: echartsEdges.map(e => ({ source: e.source, target: e.target })),
+                    roam: true,
+                    label: { show: true },
+                    force: { repulsion: 200, edgeLength: 100 },
+                }],
+            });
+        } catch (fallbackErr) {
+            console.error('降级渲染也失败:', fallbackErr);
+            throw new Error('图谱渲染失败: ' + chartErr.message);
+        }
+    }
 
     // 响应式
     if (!_vizChart._resizeBound) {
