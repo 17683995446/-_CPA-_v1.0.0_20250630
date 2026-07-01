@@ -1778,6 +1778,147 @@
             .viz-stats-row { grid-template-columns: 1fr 1fr; }
             .viz-detail-panel { width: calc(100vw - 32px); right: 16px; }
         }
+
+        /* ===== 单知识点思维导图视图 ===== */
+        .viz-mindmap-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 600;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .viz-mindmap-overlay.show { display: flex; }
+        .viz-mindmap-box {
+            width: 90vw;
+            max-width: 1000px;
+            height: 85vh;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: mmSlideIn 0.3s ease;
+        }
+        @keyframes mmSlideIn {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .viz-mindmap-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-soft);
+        }
+        .viz-mindmap-header .mmh-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .viz-mindmap-header .mmh-subj {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .viz-mindmap-header .mmh-close {
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-light);
+            border: none;
+            background: none;
+            padding: 4px 8px;
+            line-height: 1;
+            transition: var(--transition);
+        }
+        .viz-mindmap-header .mmh-close:hover { color: var(--danger); }
+        .viz-mindmap-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .viz-mindmap-canvas {
+            flex: 1;
+            min-height: 0;
+        }
+        .viz-mindmap-sidebar {
+            width: 280px;
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg-soft);
+        }
+        @media (max-width: 768px) {
+            .viz-mindmap-box { width: 95vw; height: 90vh; }
+            .viz-mindmap-sidebar { display: none; }
+        }
+        .mm-sidebar-section { margin-bottom: 20px; }
+        .mm-sidebar-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mm-kp-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 4px;
+        }
+        .mm-kp-item:hover { background: var(--card-bg); }
+        .mm-kp-item .mm-kp-code {
+            font-size: 10px;
+            font-weight: 700;
+            width: 52px;
+            flex-shrink: 0;
+        }
+        .mm-kp-item .mm-kp-name {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .mm-kp-item .mm-kp-rel {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .mm-empty {
+            font-size: 12px;
+            color: var(--text-lighter);
+            padding: 8px 0;
+        }
+        .mm-info-card {
+            padding: 14px;
+            border-radius: 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .mm-info-card .mm-info-desc {
+            font-size: 12px;
+            color: var(--text-light);
+            line-height: 1.6;
+            margin-top: 6px;
+        }
+        .mm-info-card .mm-info-diff {
+            font-size: 11px;
+            color: var(--text-lighter);
+            margin-top: 6px;
+        }
         .viz-stat-card {
             background: var(--card-bg);
             border: 1px solid var(--border);
@@ -2184,6 +2325,23 @@
             <div class="viz-detail-panel" id="viz-detail-panel">
                 <button class="vdp-close" onclick="closeVizDetail()">×</button>
                 <div id="viz-detail-content"></div>
+            </div>
+
+            <!-- 单知识点思维导图弹窗 -->
+            <div class="viz-mindmap-overlay" id="viz-mindmap-overlay">
+                <div class="viz-mindmap-box">
+                    <div class="viz-mindmap-header">
+                        <div class="mmh-title">
+                            <span id="mm-title-text">知识点思维导图</span>
+                            <span class="mmh-subj" id="mm-subj-tag"></span>
+                        </div>
+                        <button class="mmh-close" onclick="closeMindMap()">×</button>
+                    </div>
+                    <div class="viz-mindmap-body">
+                        <div class="viz-mindmap-canvas" id="mm-canvas"></div>
+                        <div class="viz-mindmap-sidebar" id="mm-sidebar"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- 分录练习 -->
@@ -3773,6 +3931,15 @@ function renderVizGraph() {
         }
     });
 
+    // 右键节点：直接打开思维导图
+    _vizChart.off('contextmenu');
+    _vizChart.on('contextmenu', function(params) {
+        if (params.dataType === 'node') {
+            params.event.event.preventDefault();
+            openMindMap(params.data._kpData.id);
+        }
+    });
+
     // 双击节点：跳转学习页
     _vizChart.off('dblclick');
     _vizChart.on('dblclick', function(params) {
@@ -3845,6 +4012,7 @@ async function showVizDetail(kpData, mastery) {
 
         <div class="vdp-actions">
             <button class="btn btn-primary" style="width:auto;padding:10px 20px" onclick="vizStartStudy(${kpData.id}, '${kpData.code}', '${kpData.subject}')">📚 开始学习</button>
+            <button class="btn btn-secondary" style="width:auto;padding:10px 20px" onclick="openMindMap(${kpData.id})">🧠 思维导图</button>
             <button class="btn btn-secondary" style="width:auto;padding:10px 20px" onclick="closeVizDetail()">关闭</button>
         </div>
     `;
@@ -3871,6 +4039,271 @@ async function vizJumpToKp(kpId) {
             name: String(kpId),
         });
     }
+}
+
+// ===== 单知识点思维导图 =====
+let _mmChart = null;
+
+async function openMindMap(kpId) {
+    const overlay = document.getElementById('viz-mindmap-overlay');
+    overlay.classList.add('show');
+
+    try {
+        const data = await api('GET', `/api/knowledge/graph/neighbors/${kpId}`);
+        // 等待 DOM 渲染完成后再初始化 ECharts（overlay display 从 none 变为 flex）
+        await new Promise(r => setTimeout(r, 100));
+        renderMindMap(data);
+    } catch (e) {
+        showToast('加载思维导图失败: ' + e.message, 'error');
+        closeMindMap();
+    }
+}
+
+function closeMindMap() {
+    const overlay = document.getElementById('viz-mindmap-overlay');
+    overlay.classList.remove('show');
+    if (_mmChart) { _mmChart.dispose(); _mmChart = null; }
+}
+
+async function renderMindMap(data) {
+    const centerNode = data.nodes.find(n => n.role === 'center');
+    if (!centerNode) return;
+
+    // 更新标题
+    const subjColor = _vizSubjectColors[centerNode.subject] || '#64748b';
+    document.getElementById('mm-title-text').textContent = centerNode.name;
+    const subjTag = document.getElementById('mm-subj-tag');
+    subjTag.textContent = centerNode.subject;
+    subjTag.style.color = subjColor;
+    subjTag.style.background = subjColor + '22';
+
+    // 渲染侧边栏
+    renderMindMapSidebar(data, centerNode);
+
+    // 渲染 ECharts 图谱
+    const canvas = document.getElementById('mm-canvas');
+    if (_mmChart) { _mmChart.dispose(); _mmChart = null; }
+    _mmChart = echarts.init(canvas);
+
+    const roleConfig = {
+        center:       { color: subjColor, size: 60, label: '当前知识点' },
+        prerequisite: { color: '#3b82f6', size: 40, label: '前置依赖' },
+        dependent:    { color: '#10b981', size: 40, label: '后续应用' },
+        related:      { color: '#f59e0b', size: 36, label: '关联知识' },
+    };
+
+    // 手动计算节点位置：中心节点居中，其他节点按角色分扇区放射排列
+    const centerX = 360, centerY = 200;
+    const prerequisites = data.nodes.filter(n => n.role === 'prerequisite');
+    const dependents = data.nodes.filter(n => n.role === 'dependent');
+    const related = data.nodes.filter(n => n.role === 'related');
+    data.nodes.forEach(n => {
+        if (n.role === 'center') {
+            n._mmX = centerX;
+            n._mmY = centerY;
+        }
+    });
+    // 前置：左上扇区
+    prerequisites.forEach((n, i) => {
+        const angle = Math.PI + (Math.PI / Math.max(prerequisites.length, 1)) * (i + 0.5);
+        n._mmX = centerX + Math.cos(angle) * 180;
+        n._mmY = centerY + Math.sin(angle) * 130;
+    });
+    // 后续：右下扇区
+    dependents.forEach((n, i) => {
+        const angle = (Math.PI / Math.max(dependents.length, 1)) * (i + 0.5);
+        n._mmX = centerX + Math.cos(angle) * 180;
+        n._mmY = centerY + Math.sin(angle) * 130;
+    });
+    // 关联：正上方扇区
+    related.forEach((n, i) => {
+        const angle = -Math.PI / 2 + ((Math.PI / 2) / Math.max(related.length, 1)) * (i + 0.5) - Math.PI / 4;
+        n._mmX = centerX + Math.cos(angle) * 160;
+        n._mmY = centerY + Math.sin(angle) * 120;
+    });
+
+    const echartsNodes = data.nodes.map((n, idx) => {
+        const cfg = roleConfig[n.role] || roleConfig.related;
+        const mastery = _vizMasteryMap[n.id] || {};
+        const level = mastery.mastery_level || 'unknown';
+        const masteryColor = _vizMasteryColors[level] || '#94a3b8';
+        return {
+            id: String(n.id),
+            name: n.name,
+            symbolSize: cfg.size,
+            x: n._mmX,
+            y: n._mmY,
+            itemStyle: {
+                color: cfg.color,
+                borderColor: n.role === 'center' ? masteryColor : cfg.color,
+                borderWidth: n.role === 'center' ? 4 : 2,
+                shadowBlur: 12,
+                shadowColor: cfg.color + '44',
+            },
+            label: {
+                show: true,
+                position: n.role === 'center' ? 'inside' : 'bottom',
+                fontSize: n.role === 'center' ? 14 : 11,
+                fontWeight: n.role === 'center' ? 700 : 500,
+                color: n.role === 'center' ? '#fff' : '#475569',
+                formatter: () => {
+                    const name = n.name || n.code;
+                    return name.length > 10 ? name.slice(0, 9) + '…' : name;
+                },
+            },
+            category: cfg.label,
+            _kpData: n,
+        };
+    });
+
+    const echartsEdges = data.edges.map(e => {
+        const sourceNode = data.nodes.find(n => n.id === e.source);
+        const targetNode = data.nodes.find(n => n.id === e.target);
+        const isPrereq = e.label === '前置依赖';
+        return {
+            source: String(e.source),
+            target: String(e.target),
+            label: {
+                show: true,
+                formatter: e.label,
+                fontSize: 10,
+                color: '#94a3b8',
+                backgroundColor: 'rgba(255,255,255,0.8)',
+                padding: [2, 6],
+                borderRadius: 4,
+            },
+            lineStyle: {
+                color: isPrereq ? '#3b82f6' : (e.label === '后续应用' ? '#10b981' : '#f59e0b'),
+                width: 2,
+                curveness: 0.2,
+                opacity: 0.7,
+            },
+            symbol: ['none', 'arrow'],
+            symbolSize: 7,
+        };
+    });
+
+    const categories = Object.entries(roleConfig).map(([key, cfg]) => ({
+        name: cfg.label,
+    }));
+
+    const option = {
+        tooltip: {
+            formatter: function(params) {
+                if (params.dataType === 'node') {
+                    const d = params.data._kpData;
+                    const mastery = _vizMasteryMap[d.id] || {};
+                    const level = mastery.mastery_level || 'unknown';
+                    const levelLabel = { unknown: '未学习', learning: '学习中', mastering: '较熟练', mastered: '已掌握' };
+                    const stars = '★'.repeat(d.difficulty || 3) + '☆'.repeat(5 - (d.difficulty || 3));
+                    return `<div style="font-weight:700;font-size:13px">${d.name}</div>
+                        <div style="font-size:11px;color:#64748b">${d.code} | ${d.subject}</div>
+                        <div style="font-size:11px;margin-top:2px">难度: ${stars}</div>
+                        <div style="font-size:11px;color:${_vizMasteryColors[level]}">掌握度: ${levelLabel[level]}</div>`;
+                }
+            },
+        },
+        legend: {
+            data: categories.map(c => c.name),
+            bottom: 10,
+            textStyle: { fontSize: 11 },
+        },
+        series: [{
+            type: 'graph',
+            layout: 'none',
+            data: echartsNodes,
+            links: echartsEdges,
+            categories: categories,
+            roam: true,
+            draggable: true,
+            emphasis: {
+                focus: 'adjacency',
+                lineStyle: { width: 3, opacity: 1 },
+            },
+        }],
+    };
+
+    try {
+        _mmChart.setOption(option);
+    } catch (e) {
+        console.error('思维导图渲染错误:', e);
+    }
+
+    // 响应式
+    if (!_mmChart._resizeBound) {
+        window.addEventListener('resize', () => { if (_mmChart) _mmChart.resize(); });
+        _mmChart._resizeBound = true;
+    }
+
+    // 点击节点：切换到该知识点的思维导图
+    _mmChart.off('click');
+    _mmChart.on('click', function(params) {
+        if (params.dataType === 'node' && params.data._kpData.role !== 'center') {
+            openMindMap(params.data._kpData.id);
+        }
+    });
+
+    // 双击节点：跳转学习
+    _mmChart.off('dblclick');
+    _mmChart.on('dblclick', function(params) {
+        if (params.dataType === 'node') {
+            const kp = params.data._kpData;
+            closeMindMap();
+            closeVizDetail();
+            showPage('study');
+            setTimeout(() => startStudy(kp.id, kp.code, kp.subject), 300);
+        }
+    });
+}
+
+function renderMindMapSidebar(data, centerNode) {
+    const sidebar = document.getElementById('mm-sidebar');
+    const subjColor = _vizSubjectColors[centerNode.subject] || '#64748b';
+    const mastery = _vizMasteryMap[centerNode.id] || {};
+    const level = mastery.mastery_level || 'unknown';
+    const levelLabel = { unknown: '未学习', learning: '学习中', mastering: '较熟练', mastered: '已掌握' };
+    const stars = '★'.repeat(centerNode.difficulty || 3) + '☆'.repeat(5 - (centerNode.difficulty || 3));
+
+    const prerequisites = data.nodes.filter(n => n.role === 'prerequisite');
+    const dependents = data.nodes.filter(n => n.role === 'dependent');
+    const related = data.nodes.filter(n => n.role === 'related');
+
+    function sectionHtml(title, icon, items, relColor) {
+        if (items.length === 0) {
+            return `<div class="mm-sidebar-section">
+                <div class="mm-sidebar-title">${icon} ${title}</div>
+                <div class="mm-empty">暂无</div>
+            </div>`;
+        }
+        return `<div class="mm-sidebar-section">
+            <div class="mm-sidebar-title">${icon} ${title}（${items.length}）</div>
+            ${items.map(n => `
+                <div class="mm-kp-item" onclick="openMindMap(${n.id})">
+                    <span class="mm-kp-code" style="color:${_vizSubjectColors[n.subject]||'#64748b'}">${n.code}</span>
+                    <span class="mm-kp-name">${n.name}</span>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    sidebar.innerHTML = `
+        <div class="mm-info-card">
+            <div style="font-size:14px;font-weight:700;color:${subjColor}">${centerNode.name}</div>
+            <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">${centerNode.code} | ${centerNode.chapter || ''}</div>
+            ${centerNode.description ? `<div class="mm-info-desc">${centerNode.description}</div>` : ''}
+            <div class="mm-info-diff">难度: ${stars} | 掌握度: <span style="color:${_vizMasteryColors[level]}">${levelLabel[level]}</span></div>
+        </div>
+        ${sectionHtml('前置依赖', '📘', prerequisites, '#3b82f6')}
+        ${sectionHtml('后续应用', '📗', dependents, '#10b981')}
+        ${sectionHtml('关联知识', '📙', related, '#f59e0b')}
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text-lighter);line-height:1.6">
+                💡 <b>单击</b>节点切换思维导图<br>
+                💡 <b>双击</b>节点跳转学习<br>
+                💡 可拖拽、缩放图谱
+            </div>
+        </div>
+    `;
 }
 
 // ===== 键盘快捷键 =====
