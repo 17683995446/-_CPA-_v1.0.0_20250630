@@ -1944,6 +1944,10 @@ let currentUser = null;
 let currentQuestion = null;
 let selectedOption = null;
 let studySessionId = null;
+let isAnswered = false;
+let _sessionCorrect = 0;
+let _sessionXp = 0;
+let _askedQuestionIds = new Set();
 
 // ===== 工具函数 =====
 async function api(method, path, body = null) {
@@ -1953,11 +1957,20 @@ async function api(method, path, body = null) {
     };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(API_BASE + path, opts);
-    const data = await res.json();
     if (!res.ok) {
-        throw new Error(data.detail || '请求失败');
+        let detail = '请求失败';
+        try {
+            const data = await res.json();
+            detail = data.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
     }
-    return data;
+    if (res.status === 204) return null;
+    try {
+        return await res.json();
+    } catch (_) {
+        return null;
+    }
 }
 
 function showToast(msg, type = 'info') {
@@ -2275,13 +2288,19 @@ async function loadStudyPage() {
 
 async function startStudy(kpId, kpCode, kpSubject) {
     _sessionCount = 0;
+    _sessionCorrect = 0;
+    _sessionXp = 0;
+    _askedQuestionIds = new Set();
     document.getElementById('session-progress-bar').style.display = 'none';
     try {
         let question = null;
         try {
             const dbQuestions = await api('GET', `/api/questions/by-kp/${kpId}`);
             if (dbQuestions.length > 0) {
-                question = dbQuestions[Math.floor(Math.random() * dbQuestions.length)];
+                const available = dbQuestions.filter(q => !_askedQuestionIds.has(q.variant_id));
+                const pool = available.length > 0 ? available : dbQuestions;
+                if (available.length === 0) _askedQuestionIds.clear();
+                question = pool[Math.floor(Math.random() * pool.length)];
                 question.knowledge_point_code = kpCode;
                 question.subject = kpSubject || '';
             }
@@ -2294,13 +2313,14 @@ async function startStudy(kpId, kpCode, kpSubject) {
                 question.knowledge_point_code = kpCode;
                 question.subject = kpSubject || '';
                 showToast('该知识点暂无专属题目，已为你随机抽题', 'info');
-            } catch {
-                throw new Error('题库暂时无法访问');
+            } catch (e) {
+                throw new Error(e.message || '题库暂时无法访问');
             }
         }
 
+        if (question.variant_id) _askedQuestionIds.add(question.variant_id);
         currentQuestion = { ...question, kp_id: kpId };
-        displayQuestion(question);
+        displayQuestion(currentQuestion);
         document.getElementById('study-config').style.display = 'none';
         document.getElementById('study-question').style.display = 'block';
 
@@ -2316,10 +2336,11 @@ async function startStudy(kpId, kpCode, kpSubject) {
 function displayQuestion(q) {
     const el = document.getElementById('question-display');
     selectedOption = null;
+    isAnswered = false;
 
-    // 隐藏上一题的答题横幅
+    // 隐藏并清空上一题的答题横幅
     const banner = document.getElementById('answer-banner');
-    if (banner) banner.className = 'answer-banner';
+    if (banner) { banner.className = 'answer-banner'; banner.innerHTML = ''; }
 
     // 构建来源标签
     const sourceLabel = q.source === 'past_exam'
@@ -2331,7 +2352,8 @@ function displayQuestion(q) {
     const pointLabel = q.exam_point
         ? `<span class="badge badge-point">🎯 ${q.exam_point}</span>`
         : '';
-    const diffStars = '★'.repeat(q.difficulty) + '☆'.repeat(5 - q.difficulty);
+    const diff = q.difficulty || 3;
+    const diffStars = '★'.repeat(diff) + '☆'.repeat(5 - diff);
 
     let html = `
         <div class="question-meta">
@@ -2339,7 +2361,7 @@ function displayQuestion(q) {
             ${yearLabel}
             <span class="badge badge-subject">${q.subject || '综合'}</span>
             <span class="badge badge-type">${getTypeName(q.question_type)}</span>
-            <span class="badge badge-difficulty">${diffStars} 难度${q.difficulty}</span>
+            <span class="badge badge-difficulty">${diffStars} 难度${diff}</span>
             ${pointLabel}
         </div>
         <div class="question-content">${q.content}</div>
@@ -2355,16 +2377,18 @@ function displayQuestion(q) {
             `;
         });
         html += '</div>';
+        html += `
+            <div class="explanation-box" id="explanation-box">
+                <h4>解析</h4>
+                <div id="explanation-text"></div>
+            </div>
+            <div class="action-bar" id="action-bar">
+                <button class="btn btn-primary" onclick="submitAnswer()">提交答案</button>
+            </div>
+        `;
+    } else {
+        html += '<div class="empty-state" style="padding:20px;color:var(--text-light)">该题型暂不支持在线作答</div>';
     }
-    html += `
-        <div class="explanation-box" id="explanation-box">
-            <h4>解析</h4>
-            <div id="explanation-text"></div>
-        </div>
-        <div class="action-bar" id="action-bar">
-            <button class="btn btn-primary" onclick="submitAnswer()">提交答案</button>
-        </div>
-    `;
     el.innerHTML = html;
 }
 
@@ -2384,10 +2408,12 @@ function selectOption(index) {
 }
 
 async function submitAnswer() {
+    if (isAnswered) return;
     if (selectedOption === null) {
         showToast('请选择一个选项', 'error');
         return;
     }
+    isAnswered = true;
     const opt = currentQuestion.options[selectedOption];
     // 通过 answer 字段判断正确性，不依赖 is_correct（已从API响应中移除）
     const isCorrect = currentQuestion.question_type === 'judgment'
@@ -2402,9 +2428,19 @@ async function submitAnswer() {
         else if (i === selectedOption) document.getElementById(`opt-${i}`).classList.add('wrong');
     });
 
+    // 解析区显示答案标签+内容
+    const correctOpt = currentQuestion.options.find(o =>
+        currentQuestion.question_type === 'judgment'
+            ? (o.content === currentQuestion.answer)
+            : (o.label === currentQuestion.answer)
+    );
+    const answerDisplay = correctOpt
+        ? `${currentQuestion.answer}．${correctOpt.content}`
+        : currentQuestion.answer;
+    const explanation = currentQuestion.explanation || '';
     document.getElementById('explanation-text').innerHTML =
-        `<p style="margin-bottom:8px"><strong>答案：${currentQuestion.answer}</strong></p>` +
-        currentQuestion.explanation.split('\n').map(line => {
+        `<p style="margin-bottom:8px"><strong>答案：${answerDisplay}</strong></p>` +
+        explanation.split('\n').map(line => {
             if (line.trim().startsWith('💡')) {
                 return `<p style="margin-top:10px;padding:10px 14px;background:rgba(245,158,11,0.08);border-radius:8px;color:var(--warning);font-size:13px;line-height:1.6">${line}</p>`;
             }
@@ -2423,13 +2459,14 @@ async function submitAnswer() {
         const result = await api('POST', `/api/mastery/${currentUser.id}/answer`, {
             knowledge_point_id: currentQuestion.kp_id,
             is_correct: isCorrect,
-            difficulty: currentQuestion.difficulty,
+            difficulty: currentQuestion.difficulty || 3,
         });
 
         await loadUserData();
         updateNavStats();
 
-        if (result.xp_earned > 0) {
+        if (result && result.xp_earned > 0) {
+            _sessionXp += result.xp_earned;
             if (result.is_critical) {
                 showCelebration('暴击！', `获得 ${result.xp_earned} XP（3倍暴击）`, '💥');
             } else if (result.level_up) {
@@ -2440,6 +2477,7 @@ async function submitAnswer() {
                 showToast(`+${result.xp_earned} XP`, 'success');
             }
         }
+        if (isCorrect) _sessionCorrect++;
 
         document.getElementById('action-bar').innerHTML = `
             <button class="btn btn-primary" onclick="nextQuestion()">下一题</button>
@@ -2455,6 +2493,11 @@ async function submitAnswer() {
         document.getElementById('sp-count').textContent = `${_sessionCount} 题`;
     } catch (e) {
         showToast('提交失败: ' + e.message, 'error');
+        // API失败时仍允许查看解析和下一题，不重置isAnswered防止重复提交
+        document.getElementById('action-bar').innerHTML = `
+            <button class="btn btn-primary" onclick="nextQuestion()">下一题</button>
+            <button class="btn btn-secondary" onclick="exitStudy()">返回</button>
+        `;
     }
 }
 
@@ -2473,7 +2516,10 @@ async function loadNextQuestion(kpId, kpCode, kpSubject) {
         try {
             const dbQuestions = await api('GET', `/api/questions/by-kp/${kpId}`);
             if (dbQuestions.length > 0) {
-                question = dbQuestions[Math.floor(Math.random() * dbQuestions.length)];
+                const available = dbQuestions.filter(q => !_askedQuestionIds.has(q.variant_id));
+                const pool = available.length > 0 ? available : dbQuestions;
+                if (available.length === 0) _askedQuestionIds.clear();
+                question = pool[Math.floor(Math.random() * pool.length)];
                 question.knowledge_point_code = kpCode;
                 question.subject = kpSubject || '';
             }
@@ -2484,14 +2530,14 @@ async function loadNextQuestion(kpId, kpCode, kpSubject) {
                 question = await api('GET', '/api/questions/random');
                 question.knowledge_point_code = kpCode;
                 question.subject = kpSubject || '';
-            } catch {
-                throw new Error('题库暂时无法访问');
+            } catch (e) {
+                throw new Error(e.message || '题库暂时无法访问');
             }
         }
 
-        question.kp_id = kpId;
-        currentQuestion = question;
-        displayQuestion(question);
+        if (question.variant_id) _askedQuestionIds.add(question.variant_id);
+        currentQuestion = { ...question, kp_id: kpId };
+        displayQuestion(currentQuestion);
         document.getElementById('study-config').style.display = 'none';
         document.getElementById('study-question').style.display = 'block';
     } catch (e) {
@@ -2504,10 +2550,15 @@ function exitStudy() {
     document.getElementById('study-question').style.display = 'none';
     if (studySessionId) {
         api('PATCH', `/api/study/sessions/${studySessionId}`, {
-            questions_answered: 1, correct_count: 1, xp_earned: 10,
+            questions_answered: _sessionCount || 0,
+            correct_count: _sessionCorrect,
+            xp_earned: _sessionXp,
         }).catch(() => {});
         studySessionId = null;
     }
+    _sessionCount = 0;
+    _sessionCorrect = 0;
+    _sessionXp = 0;
 }
 
 // ===== 复习页面 =====
@@ -3145,7 +3196,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key >= '1' && e.key <= '4') {
         const optIdx = parseInt(e.key) - 1;
         const options = document.querySelectorAll('.option-item');
-        if (options[optIdx] && !selectedOption) {
+        if (options[optIdx] && selectedOption === null) {
             selectOption(optIdx);
         }
     }
