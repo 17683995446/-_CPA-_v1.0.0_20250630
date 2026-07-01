@@ -5,7 +5,7 @@ Pydantic Schema 汇总导入。
 - 所有 API 请求/响应模型在此统一导入
 - Schema 层与 ORM Model 层分离，遵循单一职责原则
 """
-from app.schemas.common import ApiResponse, MessageResponse
+from app.schemas.common import ApiResponse, MessageResponse, PaginatedResponse, error, not_found, success
 from app.schemas.gamification import (
     AchievementResponse,
     LevelInfoResponse,
@@ -57,6 +57,10 @@ __all__ = [
     # common
     "ApiResponse",
     "MessageResponse",
+    "PaginatedResponse",
+    "success",
+    "error",
+    "not_found",
     # user
     "UserCreate",
     "UserResponse",
