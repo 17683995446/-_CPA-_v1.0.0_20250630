@@ -348,14 +348,16 @@ class JournalEntryValidator:
         parts.append("\n【科目分析】")
         for line in lines:
             acc_type = self.accounts.get(line.account, "未知")
+            # 确保 acc_type 显示为中文值而非枚举名（如"资产"而非"AccountType.ASSET"）
+            acc_type_display = acc_type.value if isinstance(acc_type, AccountType) else str(acc_type)
             direction = "借" if line.direction == EntryDirection.DEBIT else "贷"
-            parts.append(f"  {line.account}（{acc_type}）{direction}方 {line.amount}")
+            parts.append(f"  {line.account}（{acc_type_display}）{direction}方 {line.amount}")
 
             if acc_type in (AccountType.ASSET, AccountType.EXPENSE):
                 normal = "借方"
             else:
                 normal = "贷方"
-            parts.append(f"    → {acc_type}类科目正常余额在{normal}")
+            parts.append(f"    → {acc_type_display}类科目正常余额在{normal}")
 
         return "\n".join(parts)
 

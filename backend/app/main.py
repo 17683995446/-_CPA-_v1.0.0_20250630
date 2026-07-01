@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routers import (
@@ -81,6 +81,52 @@ app = FastAPI(
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+
+# ===== HTTP 安全头中间件 =====
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """为所有响应注入安全相关的 HTTP 头。"""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # CSP：允许内联脚本/样式（单页应用需要）、CDN 资源、Google Fonts
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
+    return response
+
+
+# ===== 静态文件与 Favicon =====
+
+# 挂载静态文件目录（支持 favicon 等静态资源访问）
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    """返回 SVG favicon，避免 404。"""
+    svg_content = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+        '<rect width="32" height="32" rx="6" fill="#6366f1"/>'
+        '<text x="16" y="22" font-size="18" font-weight="bold" '
+        'text-anchor="middle" fill="white" font-family="sans-serif">C</text>'
+        '</svg>'
+    )
+    return Response(
+        content=svg_content,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 # 注册 API 路由
 app.include_router(users_router.router)

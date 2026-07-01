@@ -48,12 +48,32 @@ def question_to_response(q: "Question") -> QuestionResponse:
 
     消除路由层4处重复的 QuestionResponse 构造逻辑。
     选项按 label 排序，确保前端始终显示 A/B/C/D 顺序。
+
+    关键修复：answer 字段从 is_correct 派生，而非信任 q.answer 文本。
+    这确保了即使选项被打乱、label 被重排，返回前端的答案键始终正确。
     """
     sorted_options = sorted(q.options, key=lambda o: o.label)
+
+    # 从 is_correct 派生正确答案，确保与选项标签一致
+    correct_labels = [o.label for o in sorted_options if o.is_correct]
+    if q.question_type == "judgment":
+        # 判断题：answer 是内容文本（"正确"/"错误"）
+        correct_opt = next((o for o in sorted_options if o.is_correct), None)
+        derived_answer = correct_opt.content if correct_opt else q.answer
+    elif q.question_type == "multiple_choice":
+        # 多选题：answer 是多标签拼接（如 "AC"）
+        derived_answer = "".join(correct_labels) if correct_labels else q.answer
+    elif correct_labels:
+        # 单选题等：answer 是单个标签（如 "B"）
+        derived_answer = correct_labels[0]
+    else:
+        # 兜底：journal_entry / tbs 等无选项题型，保留原始 answer
+        derived_answer = q.answer
+
     return QuestionResponse(
         question_type=q.question_type,
         content=q.content,
-        answer=q.answer,
+        answer=derived_answer,
         explanation=q.explanation or "",
         difficulty=q.difficulty,
         options=[
