@@ -100,6 +100,28 @@ def _gen_single_choice(
     return ("single_choice", content, new_answer or answer, explanation, difficulty, shuffled)
 
 
+def _shuffled_opts(
+    correct: str, wrongs: list[str],
+) -> tuple[str, list[tuple[str, str, bool]]]:
+    """
+    将正确答案和干扰项打乱并分配 A/B/C/D 标签。
+
+    返回 (answer_label, [(label, content, is_correct), ...])。
+    确保正确答案不总是第一个，消除答案分布偏斜。
+    """
+    labels = ["A", "B", "C", "D", "E", "F"]
+    all_opts = [(correct, True)] + [(w, False) for w in wrongs]
+    random.shuffle(all_opts)
+    answer_label = None
+    result = []
+    for i, (content, is_correct) in enumerate(all_opts):
+        label = labels[i]
+        if is_correct:
+            answer_label = label
+        result.append((label, content, is_correct))
+    return answer_label, result
+
+
 def _gen_judgment(
     content: str, is_correct: bool, explanation: str, difficulty: int = 2,
 ) -> tuple[str, str, str, int, list[tuple[str, str, bool]]]:
@@ -164,13 +186,8 @@ def gen_accounting(db: Session, kps: dict[str, int]) -> int:
                         _val = round(_val + 1, 1)
                     seen.add(_val)
                     wrong_vals.append(_val)
-                opts_data = [
-                    ("A", str(total), True),
-                    ("B", str(wrong_vals[0]), False),
-                    ("C", str(wrong_vals[1]), False),
-                    ("D", str(wrong_vals[2]), False),
-                ]
-                _add_question(db, kps["ACC-03-01"], "single_choice", content, "A",
+                _ans, opts_data = _shuffled_opts(str(total), [str(wrong_vals[0]), str(wrong_vals[1]), str(wrong_vals[2])])
+                _add_question(db, kps["ACC-03-01"], "single_choice", content, _ans,
                               f"存货入账价值=买价+运输费+挑选整理费={price}+{freight}+{sort_fee}={total}万元，不含增值税。",
                               3, "mock", opts_data)
                 count += 1
@@ -208,8 +225,10 @@ def gen_accounting(db: Session, kps: dict[str, int]) -> int:
                         all_opts.append((str(fake), False))
                         seen.add(fake)
                 labels_4 = ["A", "B", "C", "D"]
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["ACC-04-02"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["ACC-04-02"], "single_choice", content, _ans,
                               f"年折旧额=(原值-净残值)/年限=({origin}-{residual})/{year}={annual_dep}万元。",
                               3, "mock", opts_data)
                 count += 1
@@ -239,13 +258,8 @@ def gen_accounting(db: Session, kps: dict[str, int]) -> int:
                 revenue = round(unit_price * qty * (1 - discount), 1)
                 disc_text = f"，商业折扣{int(discount*100)}%" if discount > 0 else ""
                 content = f"某企业销售产品{qty}件，单价{unit_price}元{disc_text}。确认的收入金额为（　）元。"
-                opts_data = [
-                    ("A", str(revenue), True),
-                    ("B", str(unit_price * qty), False),
-                    ("C", str(round(unit_price * qty * (1 + 0.13), 1)), False),
-                    ("D", str(round(revenue * 0.87, 1)), False),
-                ]
-                _add_question(db, kps["ACC-16-01"], "single_choice", content, "A",
+                _ans, opts_data = _shuffled_opts(str(revenue), [str(unit_price * qty), str(round(unit_price * qty * (1 + 0.13), 1)), str(round(revenue * 0.87, 1))])
+                _add_question(db, kps["ACC-16-01"], "single_choice", content, _ans,
                               f"收入=单价×数量×(1-折扣)={unit_price}×{qty}×{1-discount}={revenue}元。",
                               3, "mock", opts_data)
                 count += 1
@@ -404,8 +418,10 @@ def gen_auditing(db: Session, kps: dict[str, int]) -> int:
                         all_opts.append((str(fake), False))
                         seen.add(fake)
                 labels_4 = ["A", "B", "C", "D"]
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["AUD-06-02"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["AUD-06-02"], "single_choice", content, _ans,
                               f"检查风险=审计风险/重大错报风险={ar}/{rmm}={dr}。",
                               4, "mock", opts_data)
                 count += 1
@@ -488,8 +504,10 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                         all_opts.append((str(fake), False))
                         seen.add(fake)
                 labels_4 = ["A", "B", "C", "D"]
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["FCM-01-03"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
                               f"复利终值F=P×(1+i)^n={p}×(1+{r})^{n}={fv}元。",
                               3, "mock", opts_data)
                 count += 1
@@ -524,8 +542,10 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                         all_opts.append((str(fake), False))
                         seen.add(fake)
                 labels_4 = ["A", "B", "C", "D"]
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["FCM-01-03"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
                               f"复利现值P=F/(1+i)^n={fv}/(1+{r})^{n}={pv}元。",
                               3, "mock", opts_data)
                 count += 1
@@ -557,8 +577,10 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                         all_opts.append((str(fake), False))
                         seen.add(fake)
                 labels_4 = ["A", "B", "C", "D"]
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["FCM-01-03"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
                               f"年金终值F=A×[(1+i)^n-1]/i={pmt}×[(1+{r})^{n}-1]/{r}={fv_annuity}元。",
                               4, "mock", opts_data)
                 count += 1
@@ -598,8 +620,10 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                             all_opts.append((fake_str, False))
                             seen.add(fake_str)
                     labels_4 = ["A", "B", "C", "D"]
+                    random.shuffle(all_opts)
                     opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                    _add_question(db, kps["FCM-03-01"], "single_choice", content, "A",
+                    _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                    _add_question(db, kps["FCM-03-01"], "single_choice", content, _ans,
                                   f"WACC=Kd×(1-T)×Wd+Ke×We={rd}×(1-{t})×{wd}+{re}×{we}={wacc*100:.1f}%。",
                                   4, "mock", opts_data)
                     count += 1
@@ -634,8 +658,10 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                         all_opts.append((str(fake), False))
                         seen.add(fake)
                 labels_4 = ["A", "B", "C", "D"]
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["FCM-14-01"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["FCM-14-01"], "single_choice", content, _ans,
                               f"盈亏平衡点=固定成本/(单价-单位变动成本)={fixed_cost}/({price}-{var_cost})={int(bep)}件。",
                               3, "mock", opts_data)
                 count += 1
@@ -781,8 +807,10 @@ def gen_strategy(db: Session, kps: dict[str, int]) -> int:
         opts_list = [(labels[i], opts[i][1], i == 0) for i in range(min(4, len(opts)))]
         while len(opts_list) < 4:
             opts_list.append((labels[len(opts_list)], "不确定", False))
+        random.shuffle(opts_list)
+        _ans = next(o[0] for o in opts_list if o[2])
         content = f"{scenario}，这属于（　）。"
-        _add_question(db, kps["STR-05-01"], "single_choice", content, "A",
+        _add_question(db, kps["STR-05-01"], "single_choice", content, _ans,
                       f"{scenario}属于{correct_type}中的{detail}。", 3, "mock", opts_list)
         count += 1
 
@@ -944,8 +972,10 @@ def gen_tax(db: Session, kps: dict[str, int]) -> int:
                     all_opts.append((fake_str, False))
                     seen.add(fake_str)
             labels_4 = ["A", "B", "C", "D"]
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["TAX-02-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["TAX-02-02"], "single_choice", content, _ans,
                           f"销项税额=不含税销售额×适用税率={revenue}×{rate}%={output_tax}万元。",
                           2, "mock", opts_data)
             count += 1
@@ -979,8 +1009,10 @@ def gen_tax(db: Session, kps: dict[str, int]) -> int:
                     all_opts.append((fake_str, False))
                     seen.add(fake_str)
             labels_4 = ["A", "B", "C", "D"]
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["TAX-02-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["TAX-02-02"], "single_choice", content, _ans,
                           f"不含税销售额=含税销售额/(1+税率)={tax_inclusive}/(1+{rate}%)={revenue}万元。",
                           3, "mock", opts_data)
             count += 1
@@ -1022,8 +1054,10 @@ def gen_tax(db: Session, kps: dict[str, int]) -> int:
                             all_opts.append((fake_str, False))
                             seen.add(fake_str)
                     labels_4 = ["A", "B", "C", "D"]
+                    random.shuffle(all_opts)
                     opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                    _add_question(db, kps["TAX-04-01"], "single_choice", content, "A",
+                    _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                    _add_question(db, kps["TAX-04-01"], "single_choice", content, _ans,
                                   f"应纳税所得额=收入总额-不征税收入-免税收入-各项扣除={income}-{non_tax}-{exempt_inc}-{deduct}={taxable_income}万元。",
                                   4, "mock", opts_data)
                     count += 1
@@ -1143,13 +1177,17 @@ def gen_accounting_extra(db: Session, kps: dict[str, int]) -> int:
                 answer = str(provision)
                 wrongs = [str(0), str(round(cost + nv, 1)), str(round(nv, 1))]
                 opts_data = [("A", answer, True)] + [(labels[i+1], wrongs[i], False) for i in range(3)]
-                _add_question(db, kps["ACC-03-02"], "single_choice", content, "A",
+                random.shuffle(opts_data)
+                _ans = next(o[0] for o in opts_data if o[2])
+                _add_question(db, kps["ACC-03-02"], "single_choice", content, _ans,
                               f"成本{cost}>可变现净值{nv}，计提跌价准备={cost}-{nv}={provision}万元。", 3, "mock", opts_data)
             else:
                 content = f"某存货成本{cost}万元，可变现净值{nv}万元。应计提存货跌价准备（　）万元。"
                 wrongs = [str(round(nv - cost, 1)), str(round(cost * 0.1, 1)), str(round(nv, 1))]
                 opts_data = [("A", "0", True)] + [(labels[i+1], wrongs[i], False) for i in range(3)]
-                _add_question(db, kps["ACC-03-02"], "single_choice", content, "A",
+                random.shuffle(opts_data)
+                _ans = next(o[0] for o in opts_data if o[2])
+                _add_question(db, kps["ACC-03-02"], "single_choice", content, _ans,
                               f"成本{cost}≤可变现净值{nv}，不计提跌价准备。", 3, "mock", opts_data)
             count += 1
 
@@ -1176,7 +1214,9 @@ def gen_accounting_extra(db: Session, kps: dict[str, int]) -> int:
                     seen.add(_val)
                     wrong_vals.append(_val)
                 opts_data = [("A", str(total), True)] + [(labels[i+1], str(wrong_vals[i]), False) for i in range(3)]
-                _add_question(db, kps["ACC-04-01"], "single_choice", content, "A",
+                random.shuffle(opts_data)
+                _ans = next(o[0] for o in opts_data if o[2])
+                _add_question(db, kps["ACC-04-01"], "single_choice", content, _ans,
                               f"固定资产入账价值=买价+运输费+安装费={price}+{tf}+{inst}={total}万元。", 3, "mock", opts_data)
                 count += 1
 
@@ -1547,8 +1587,10 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
                             all_opts.append((fake_str, False))
                             seen.add(fake_str)
                     labels_4 = ["A", "B", "C", "D"]
+                    random.shuffle(all_opts)
                     opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                    _add_question(db, kps["TAX-02-02"], "single_choice", content, "A",
+                    _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                    _add_question(db, kps["TAX-02-02"], "single_choice", content, _ans,
                                   f"应纳增值税=销项税额-进项税额={output_tax}-{input_tax}={payable_val}万元。",
                                   4, "mock", opts_data)
                     count += 1
@@ -1583,10 +1625,12 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
                     all_opts.append((fake_str, False))
                     seen.add(fake_str)
             labels_4 = ["A", "B", "C", "D"]
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
             # 小型微利企业实际享受减免优惠，有效税率低于20%，此处按标准税率20%计算
             _note = "注：小型微利企业实际享受减免优惠，有效税率低于20%，此处按标准税率计算。" if rate == 0.20 else ""
-            _add_question(db, kps["TAX-04-01"], "single_choice", content, "A",
+            _add_question(db, kps["TAX-04-01"], "single_choice", content, _ans,
                           f"应纳税额=应纳税所得额×税率={income}×{rate_labels[rate]}={tax}万元。{_note}",
                           3, "mock", opts_data)
             count += 1
@@ -1658,8 +1702,10 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
                 all_opts.append((fake_str, False))
                 seen.add(fake_str)
         labels_4 = ["A", "B", "C", "D"]
+        random.shuffle(all_opts)
         opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-        _add_question(db, kps["TAX-05-01"], "single_choice", content, "A",
+        _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+        _add_question(db, kps["TAX-05-01"], "single_choice", content, _ans,
                       f"应纳税所得额={income}-5000={taxable}元，按超额累进税率计算，应纳税额={tax}元。",
                       4, "mock", opts_data)
         count += 1
@@ -1703,8 +1749,10 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["ACC-04-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["ACC-04-02"], "single_choice", content, _ans,
                           f"双倍余额递减法第一年折旧=原值×(2/年限)={origin}×(2/{years})={year1_dep}万元。", 4, "mock", opts_data)
             count += 1
 
@@ -1724,8 +1772,10 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen2 and fake > 0:
                     all_opts2.append((fs, False)); seen2.add(fs)
+            random.shuffle(all_opts)
             opts_data2 = [(labels_4[i], all_opts2[i][0], all_opts2[i][1]) for i in range(min(4, len(all_opts2)))]
-            _add_question(db, kps["ACC-04-02"], "single_choice", content2, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["ACC-04-02"], "single_choice", content2, _ans,
                           f"第二年折旧=(原值-第一年折旧)×(2/年限)=({origin}-{year1_dep})×(2/{years})={year2_dep}万元。", 4, "mock", opts_data2)
             count += 1
 
@@ -1752,8 +1802,10 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["ACC-04-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["ACC-04-02"], "single_choice", content, _ans,
                           f"年数总和法第一年折旧=(原值-净残值)×尚可使用年限/年数总和=({origin}-{residual})×{years}/{int(sum_years)}={year1_dep}万元。", 4, "mock", opts_data)
             count += 1
 
@@ -1786,8 +1838,10 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
             fs = str(fake)
             if fs not in seen and fake > 0:
                 all_opts.append((fs, False)); seen.add(fs)
+        random.shuffle(all_opts)
         opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-        _add_question(db, kps["ACC-03-01"], "single_choice", content, "A",
+        _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+        _add_question(db, kps["ACC-03-01"], "single_choice", content, _ans,
                       f"加权平均单位成本=总成本/总数量={total_cost}/{total_qty}={avg_cost}元。", 3, "mock", opts_data)
         count += 1
 
@@ -1812,8 +1866,10 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["ACC-05-01"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["ACC-05-01"], "single_choice", content, _ans,
                           f"坏账准备=应收账款余额×计提比例={balance}×{int(rate*100)}%={provision}元。", 3, "mock", opts_data)
             count += 1
 
@@ -1889,8 +1945,10 @@ def gen_finance_batch3(db: Session, kps: dict[str, int]) -> int:
                             fs = str(fake)
                             if fs not in seen and fake > 0:
                                 all_opts.append((fs, False)); seen.add(fs)
+                        random.shuffle(all_opts)
                         opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                        _add_question(db, kps["FCM-01-03"], "single_choice", content, "A",
+                        _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                        _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
                                       f"WACC=权益比重×权益成本+债务比重×税后债务成本={w_eq:.4f}×{ce}+{w_debt:.4f}×{after_tax_cd:.4f}={wacc}。", 5, "mock", opts_data)
                         count += 1
                         if count >= 1000:  # 限制数量避免过多
@@ -1929,8 +1987,10 @@ def gen_finance_batch3(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen and fake > 0:
                         all_opts.append((fs, False)); seen.add(fs)
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["FCM-02-01"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["FCM-02-01"], "single_choice", content, _ans,
                               f"流动比率=流动资产/流动负债={ca}/{cl}={cr}。", 3, "mock", opts_data)
                 count += 1
                 # 速动比率
@@ -1949,8 +2009,10 @@ def gen_finance_batch3(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen2 and fake > 0:
                         all_opts2.append((fs, False)); seen2.add(fs)
+                random.shuffle(all_opts)
                 opts_data2 = [(labels_4[i], all_opts2[i][0], all_opts2[i][1]) for i in range(min(4, len(all_opts2)))]
-                _add_question(db, kps["FCM-02-01"], "single_choice", content2, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["FCM-02-01"], "single_choice", content2, _ans,
                               f"速动比率=(流动资产-存货)/流动负债=({ca}-{inv})/{cl}={qr}。", 4, "mock", opts_data2)
                 count += 1
                 if count >= 1500:
@@ -2274,8 +2336,10 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["TAX-02-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["TAX-02-02"], "single_choice", content, _ans,
                           f"销项税额=不含税销售额×税率={amt}×{rate}%={tax}万元。", 3, "mock", opts_data)
             count += 1
 
@@ -2306,8 +2370,10 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["TAX-02-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["TAX-02-02"], "single_choice", content, _ans,
                           f"不含税销售额=含税销售额÷(1+税率)={amt}÷(1+{rate}%)={answer}万元。", 3, "mock", opts_data)
             count += 1
 
@@ -2333,8 +2399,10 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["TAX-04-01"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["TAX-04-01"], "single_choice", content, _ans,
                           f"应纳税额=应纳税所得额×税率={income}×{rate_label}={tax}万元。", 3, "mock", opts_data)
             count += 1
 
@@ -2380,8 +2448,10 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
             fs = str(fake)
             if fs not in seen and fake > 0:
                 all_opts.append((fs, False)); seen.add(fs)
+        random.shuffle(all_opts)
         opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-        _add_question(db, kps["TAX-05-01"], "single_choice", content, "A",
+        _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+        _add_question(db, kps["TAX-05-01"], "single_choice", content, _ans,
                       f"按七级超额累进税率计算（适用{level}），应纳税额={tax}元。", 4, "mock", opts_data)
         count += 1
 
@@ -2425,8 +2495,10 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen and fake > 0:
                         all_opts.append((fs, False)); seen.add(fs)
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["AUD-06-02"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["AUD-06-02"], "single_choice", content, _ans,
                               f"属性抽样样本量受总体规模、可容忍偏差率和预期偏差率影响。计算得样本量约{n}个。", 5, "mock", opts_data)
                 count += 1
 
@@ -2453,8 +2525,10 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["AUD-06-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["AUD-06-02"], "single_choice", content, _ans,
                           f"重要性水平=基准×比例={amt}×{bench_rate*100:.1f}%={materiality}万元。", 4, "mock", opts_data)
             count += 1
 
@@ -2483,8 +2557,10 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen and fake > 0:
                         all_opts.append((fs, False)); seen.add(fs)
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["AUD-06-02"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["AUD-06-02"], "single_choice", content, _ans,
                               f"检查风险=审计风险/重大错报风险={ar}/({ir}×{cr})={dr}。", 5, "mock", opts_data)
                 count += 1
 
@@ -2572,8 +2648,10 @@ def gen_law_batch4(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["LAW-03-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["LAW-03-02"], "single_choice", content, _ans,
                           f"违约金=合同标的额×违约金比例={amt}×{rate*100:.0f}%={penalty}元。", 3, "mock", opts_data)
             count += 1
 
@@ -2597,8 +2675,10 @@ def gen_law_batch4(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["LAW-03-02"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["LAW-03-02"], "single_choice", content, _ans,
                           f"定金=合同标的额×定金比例={amt}×{rate*100:.0f}%={deposit}元（不得超过20%）。", 3, "mock", opts_data)
             count += 1
 
@@ -2619,8 +2699,10 @@ def gen_law_batch4(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen2 and fake > 0:
                     all_opts2.append((fs, False)); seen2.add(fs)
+            random.shuffle(all_opts)
             opts_data2 = [(labels_4[i], all_opts2[i][0], all_opts2[i][1]) for i in range(min(4, len(all_opts2)))]
-            _add_question(db, kps["LAW-03-02"], "single_choice", content2, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["LAW-03-02"], "single_choice", content2, _ans,
                           f"收受定金方违约应双倍返还定金={deposit}×2={double_return}元。", 3, "mock", opts_data2)
             count += 1
 
@@ -2646,8 +2728,10 @@ def gen_law_batch4(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["LAW-05-01"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["LAW-05-01"], "single_choice", content, _ans,
                           f"每名股东出资额=注册资本÷股东人数={cap}÷{sc}={per_capital}万元。", 2, "mock", opts_data)
             count += 1
 
@@ -2681,8 +2765,10 @@ def gen_accounting_batch4(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen and fake > 0:
                     all_opts.append((fs, False)); seen.add(fs)
+            random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-            _add_question(db, kps["ACC-16-01"], "single_choice", content, "A",
+            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _add_question(db, kps["ACC-16-01"], "single_choice", content, _ans,
                           f"营业收入=含税总额÷(1+税率)={amt}÷(1+{tr}%)={revenue}万元。", 3, "mock", opts_data)
             count += 1
 
@@ -2711,8 +2797,10 @@ def gen_accounting_batch4(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen and (fake > 0 or len(all_opts) < 2):
                         all_opts.append((fs, False)); seen.add(fs)
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["ACC-01-02"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["ACC-01-02"], "single_choice", content, _ans,
                               f"营业利润=收入-成本-费用={rev}-{cost}-{expense}={profit}万元。", 4, "mock", opts_data)
                 count += 1
 
@@ -2739,8 +2827,10 @@ def gen_accounting_batch4(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen and fake > 0:
                         all_opts.append((fs, False)); seen.add(fs)
+                random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
-                _add_question(db, kps["ACC-01-02"], "single_choice", content, "A",
+                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _add_question(db, kps["ACC-01-02"], "single_choice", content, _ans,
                               f"所有者权益=实收资本+未分配利润+盈余公积={cap}+{ret}+{sur}={equity}万元。", 3, "mock", opts_data)
                 count += 1
 
