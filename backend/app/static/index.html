@@ -2737,9 +2737,10 @@ async function submitAnswer() {
             ? (o.content === currentQuestion.answer)
             : (o.label === currentQuestion.answer)
     );
-    const answerDisplay = correctOpt
-        ? `${currentQuestion.answer}．${correctOpt.content}`
-        : currentQuestion.answer;
+    // 判断题 answer 本身就是"正确"/"错误"，无需再拼接选项内容
+    const answerDisplay = currentQuestion.question_type === 'judgment'
+        ? currentQuestion.answer
+        : (correctOpt ? `${currentQuestion.answer}．${correctOpt.content}` : currentQuestion.answer);
     const explanation = currentQuestion.explanation || '';
     document.getElementById('explanation-text').innerHTML =
         `<p style="margin-bottom:8px"><strong>答案：${answerDisplay}</strong></p>` +
