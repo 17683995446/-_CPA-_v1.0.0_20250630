@@ -69,15 +69,17 @@ class TestQuestionToResponse:
         assert resp.question_type == "single_choice"
 
     def test_options_mapped(self, sample_question):
-        """选项正确映射。"""
+        """选项正确映射。注意：is_correct 字段不在响应中（防泄露）。"""
         resp = question_to_response(sample_question)
         assert len(resp.options) == 4
         labels = [o.label for o in resp.options]
         assert "A" in labels
         assert "B" in labels
-        correct = [o for o in resp.options if o.is_correct]
-        assert len(correct) == 1
-        assert correct[0].label == "B"
+        # is_correct 已从响应中移除，防止前端泄露答案
+        for opt in resp.options:
+            assert hasattr(opt, 'label')
+            assert hasattr(opt, 'content')
+            assert not hasattr(opt, 'is_correct')
 
     def test_exam_metadata(self, sample_question):
         """真题元数据正确传递。"""
