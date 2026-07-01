@@ -18,6 +18,26 @@ from app.question_data.helpers import (
 # 即单个大写字母 A-D 紧跟"选项"二字、中文标点或任意中文字符。
 _OPTION_LETTER_RE = re.compile(r"[A-D](?:选项|[、，。（(]|[一-鿿])")
 
+# 去重时可能追加的后缀（需在每次修复前清除，防止"（错误）（错误）"叠加）
+_DEDUP_SUFFIXES = ["（错误）", "（不正确）", "（非）", "（ variant）", "（变体1）", "（变体2）", "（变体3）"]
+
+
+def _strip_dedup_suffixes(content: str) -> str:
+    """清除选项内容中累积的去重后缀。
+
+    fix_existing_database 每次服务器启动时运行，如果上次运行追加了
+    "（错误）" 等后缀来消重，下次运行可能再次追加导致 "（错误）（错误）"
+    叠加。此函数在处理前先清除所有已知后缀，确保幂等。
+    """
+    changed = True
+    while changed:
+        changed = False
+        for suffix in _DEDUP_SUFFIXES:
+            if content.endswith(suffix):
+                content = content[: -len(suffix)]
+                changed = True
+    return content
+
 
 def _explanation_references_options(explanation: str) -> bool:
     """检测解析文本是否引用了选项字母（A/B/C/D）。
@@ -114,7 +134,7 @@ def fix_existing_database(db: Session) -> dict:
 
     返回修复统计信息。
     """
-    stats = {"shuffled": 0, "judgment_fixed": 0, "answer_fixed": 0, "total": 0}
+    stats = {"shuffled": 0, "judgment_fixed": 0, "answer_fixed": 0, "total": 0, "suffix_cleaned": 0}
 
     questions = db.query(Question).all()
     for q in questions:
@@ -122,6 +142,13 @@ def fix_existing_database(db: Session) -> dict:
         if len(opts) <= 1:
             continue
         stats["total"] += 1
+
+        # ★ 幂等保障：清除上次运行可能追加的去重后缀，防止 "（错误）（错误）" 叠加
+        for opt in opts:
+            cleaned = _strip_dedup_suffixes(opt.content)
+            if cleaned != opt.content:
+                opt.content = cleaned
+                stats["suffix_cleaned"] += 1
 
         if q.question_type == "judgment":
             # 修复判断题异常
@@ -187,8 +214,8 @@ def fix_existing_database(db: Session) -> dict:
                                             seen_contents.add(new_val)
                                             break
                             else:
-                                # 文本型：追加标记区分，不替换为纯数字
-                                for suffix in ['（错误）', '（不正确）', '（非）', '（ variant）']:
+                                # 文本型：追加序号后缀区分（每次运行前会被 _strip_dedup_suffixes 清除，保证幂等）
+                                for suffix in ['（错误）', '（不正确）', '（非）']:
                                     if opt.content + suffix not in seen_contents:
                                         opt.content = opt.content + suffix
                                         seen_contents.add(opt.content)
@@ -232,7 +259,8 @@ def fix_existing_database(db: Session) -> dict:
                                         seen.add(new_val)
                                         break
                         else:
-                            for suffix in ['（变体1）', '（变体2）', '（变体3）']:
+                            # 文本型：追加后缀区分（下次运行前会被 _strip_dedup_suffixes 清除）
+                            for suffix in ['（错误）', '（不正确）', '（非）']:
                                 if opt.content + suffix not in seen:
                                     opt.content = opt.content + suffix
                                     seen.add(opt.content)

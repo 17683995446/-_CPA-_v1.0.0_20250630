@@ -58,20 +58,43 @@ async def lifespan(app: FastAPI):
     try:
         if settings.AUTO_SEED_ON_STARTUP:
             run_seed(db)
+
+            # ★ 版本检查：题库版本号变更时自动重建，防止旧代码遗留的脏数据积累
+            version_file = Path(__file__).parent / ".question_db_version"
+            stored_version = ""
+            if version_file.exists():
+                stored_version = version_file.read_text(encoding="utf-8").strip()
+
+            version_mismatch = stored_version != settings.QUESTION_DB_VERSION
             q_count = db.query(Question).count()
+
+            if version_mismatch and q_count > 0:
+                logger.warning("题库版本不匹配 (存储=%s, 当前=%s)，重建题库...",
+                               stored_version, settings.QUESTION_DB_VERSION)
+                # 删除旧题目（保留用户学习记录）
+                from app.models import QuestionOption
+                db.query(QuestionOption).delete()
+                db.query(Question).delete()
+                db.commit()
+                q_count = 0
+
             if q_count < settings.QUESTION_BANK_THRESHOLD:
                 logger.info("题库仅 %d 题，开始批量生成...", q_count)
                 generate_mass_questions(db)
                 final_count = db.query(Question).count()
                 logger.info("题库生成完成，共 %d 题", final_count)
 
+            # 写入当前版本号
+            version_file.write_text(settings.QUESTION_DB_VERSION, encoding="utf-8")
+
         # 启动时自动修复已有题库的选项顺序和数据完整性（始终执行）
         fix_stats = fix_existing_database(db)
         dedup = fix_stats.get("dedup_fixed", 0)
-        if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0 or dedup > 0:
-            logger.info("题库修复: 打乱%d题, 判断题修复%d题, 答案修正%d题, 选项去重%d题",
+        suffix_cleaned = fix_stats.get("suffix_cleaned", 0)
+        if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0 or dedup > 0 or suffix_cleaned > 0:
+            logger.info("题库修复: 打乱%d题, 判断题修复%d题, 答案修正%d题, 选项去重%d题, 后缀清理%d题",
                         fix_stats["shuffled"], fix_stats["judgment_fixed"],
-                        fix_stats["answer_fixed"], dedup)
+                        fix_stats["answer_fixed"], dedup, suffix_cleaned)
         else:
             logger.info("题库选项已打乱: %d题", fix_stats["shuffled"])
     finally:
