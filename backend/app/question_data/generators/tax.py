@@ -258,13 +258,25 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
     rate_labels = {0.25: "25%", 0.20: "20%（小型微利企业）", 0.15: "15%（高新技术企业）"}
     for income in taxable_incomes:
         for rate in rates_tax:
-            tax = round(income * rate, 2)
+            # 小型微利企业仅适用于年应纳税所得额不超过300万元的情形
+            if rate == 0.20 and income > 300:
+                continue
+            if rate == 0.20:
+                # 2023-2027年政策：应纳税所得额减按25%计入，按20%税率缴纳，实际有效税率5%
+                tax = round(income * 0.25 * 0.20, 2)
+                wrongs = [
+                    str(round(income * 0.20, 2)),
+                    str(round(income * 0.25, 2)),
+                    str(round(income * 0.10, 2)),
+                ]
+            else:
+                tax = round(income * rate, 2)
+                wrongs = [
+                    str(round(income * (rate + 0.05), 2)),
+                    str(round(income * (rate - 0.05), 2)),
+                    str(round(income * 0.1, 2)),
+                ]
             content = f"某企业应纳税所得额{income}万元，适用税率{rate_labels[rate]}。应纳企业所得税为（　）万元。"
-            wrongs = [
-                str(round(income * (rate + 0.05), 2)),
-                str(round(income * (rate - 0.05), 2)),
-                str(round(income * 0.1, 2)),
-            ]
             all_opts = [(str(tax), True)]
             seen = {str(tax)}
             for w in wrongs:
@@ -285,10 +297,12 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
             random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
             _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-            # 小型微利企业实际享受减免优惠，有效税率低于20%，此处按标准税率20%计算
-            _note = "注：小型微利企业实际享受减免优惠，有效税率低于20%，此处按标准税率计算。" if rate == 0.20 else ""
+            if rate == 0.20:
+                _expl = f"小型微利企业应纳税额=应纳税所得额×25%×20%={income}×25%×20%={tax}万元。"
+            else:
+                _expl = f"应纳税额=应纳税所得额×税率={income}×{rate_labels[rate]}={tax}万元。"
             _add_question(db, kps["TAX-04-01"], "single_choice", content, _ans,
-                          f"应纳税额=应纳税所得额×税率={income}×{rate_labels[rate]}={tax}万元。{_note}",
+                          _expl,
                           3, "mock", opts_data)
             count += 1
 
@@ -446,13 +460,22 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
 
     # --- 3. 企业所得税应纳税额（更多组合） ---
     incomes = [20, 30, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000, 20000, 25000]
-    rates_cit = [(0.25, "25%"), (0.20, "20%"), (0.15, "15%"), (0.10, "10%（非居民企业）")]
+    rates_cit = [(0.25, "25%"), (0.20, "20%"), (0.15, "15%"), (0.10, "10%（预提所得税率）")]
     for income in incomes:
         for rate_val, rate_label in rates_cit:
-            tax = round(income * rate_val, 2)
-            content = f"某企业应纳税所得额{income}万元，适用企业所得税税率{rate_label}。应纳企业所得税为（　）万元。"
-            wrongs = [str(round(income * (rate_val + 0.05), 2)), str(round(income * (rate_val - 0.05), 2)),
-                      str(round(income * 0.1, 2))]
+            if rate_val == 0.10:
+                # 非居民企业取得股息红利等，未在中国境内设立机构场所，按收入全额适用10%预提所得税率
+                tax = round(income * 0.10, 2)
+                content = f"某非居民企业取得来源于中国境内的股息红利{income}万元（未在中国境内设立机构场所），适用预提所得税率10%。应纳预提所得税为（　）万元。"
+                wrongs = [str(round(income * 0.25, 2)), str(round(income * 0.05, 2)),
+                          str(round(income * 0.15, 2))]
+                expl = f"非居民企业取得来源于中国境内的股息红利，未在中国境内设立机构场所的，按收入全额适用10%预提所得税率。应纳预提所得税={income}×10%={tax}万元。"
+            else:
+                tax = round(income * rate_val, 2)
+                content = f"某企业应纳税所得额{income}万元，适用企业所得税税率{rate_label}。应纳企业所得税为（　）万元。"
+                wrongs = [str(round(income * (rate_val + 0.05), 2)), str(round(income * (rate_val - 0.05), 2)),
+                          str(round(income * 0.1, 2))]
+                expl = f"应纳税额=应纳税所得额×税率={income}×{rate_label}={tax}万元。"
             all_opts = [(str(tax), True)]
             seen = {str(tax)}
             for w in wrongs:
@@ -470,7 +493,7 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
             _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
             _add_question(db, kps["TAX-04-01"], "single_choice", content, _ans,
-                          f"应纳税额=应纳税所得额×税率={income}×{rate_label}={tax}万元。", 3, "mock", opts_data)
+                          expl, 3, "mock", opts_data)
             count += 1
 
     # --- 4. 个人所得税更多组合 ---

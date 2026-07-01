@@ -49,7 +49,7 @@ def gen_law(db: Session, kps: dict[str, int]) -> int:
         ("股东有权查阅公司章程和股东会会议记录。", True, "股东知情权。"),
         ("公司分立前的债务由分立后的公司承担连带责任。", True, "除非另有约定。"),
         ("有限责任公司的股东之间可以相互转让其全部或部分股权。", True, "内部转让自由。"),
-        ("股东向股东以外的人转让股权，应当经其他股东过半数同意。", False, "2023年新公司法取消了过半数同意的要求，改为书面通知其他股东，30日内未答复视为同意。"),
+        ("股东向股东以外的人转让股权，应当经其他股东过半数同意。", False, "2023新公司法取消了过半数同意要求，改为书面通知制。其他股东自接到书面通知之日起满三十日未答复的，视为放弃优先购买权。"),
     ]
     for content, is_correct, explanation in law_judgments:
         result = _gen_judgment(content, is_correct, explanation, 2)

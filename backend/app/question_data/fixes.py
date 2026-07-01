@@ -1,5 +1,6 @@
 """题库数据完整性修复与解析增强。"""
 import random
+import re
 
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,22 @@ from app.question_data.helpers import (
     _gen_single_choice,
     _is_pure_numeric,
 )
+
+# 匹配解析中引用选项字母的模式。
+# 形如 "A选项"、"A属于"、"A、"、"A（内容）"、"A(内容)"、"A多元化" 等，
+# 即单个大写字母 A-D 紧跟"选项"二字、中文标点或任意中文字符。
+_OPTION_LETTER_RE = re.compile(r"[A-D](?:选项|[、，。（(]|[一-鿿])")
+
+
+def _explanation_references_options(explanation: str) -> bool:
+    """检测解析文本是否引用了选项字母（A/B/C/D）。
+
+    若解析中包含选项字母引用，打乱选项顺序会导致解析中的字母指向
+    与打乱后的选项内容错位，因此这类题目应跳过选项打乱。
+    """
+    if not explanation:
+        return False
+    return bool(_OPTION_LETTER_RE.search(explanation))
 
 
 def _shuffle_all_options(db: Session) -> int:
@@ -52,6 +69,12 @@ def _shuffle_all_options(db: Session) -> int:
                     opts[0].content, opts[1].content = opts[1].content, opts[0].content
                     opts[0].is_correct, opts[1].is_correct = opts[1].is_correct, opts[0].is_correct
             # answer 保持为"正确"或"错误"文本，前端通过 content 匹配
+            count += 1
+            continue
+
+        # 解析中引用了选项字母（如"A选项"、"B属于"）的题目，跳过打乱，
+        # 否则打乱后解析中的字母指向会与选项内容错位。
+        if _explanation_references_options(q.explanation):
             count += 1
             continue
 
@@ -170,6 +193,10 @@ def fix_existing_database(db: Session) -> dict:
                                         break
                         else:
                             seen_contents.add(opt.content)
+
+            # 解析中引用了选项字母的题目，跳过打乱以避免解析与选项错位
+            if _explanation_references_options(q.explanation):
+                continue
 
             # 打乱选项顺序
             contents = [o.content for o in opts]

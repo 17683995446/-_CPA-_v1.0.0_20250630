@@ -896,7 +896,7 @@ def gen_law(db: Session, kps: dict[str, int]) -> int:
         ("股东有权查阅公司章程和股东会会议记录。", True, "股东知情权。"),
         ("公司分立前的债务由分立后的公司承担连带责任。", True, "除非另有约定。"),
         ("有限责任公司的股东之间可以相互转让其全部或部分股权。", True, "内部转让自由。"),
-        ("股东向股东以外的人转让股权，应当经其他股东过半数同意。", False, "2023年新公司法取消了过半数同意的要求，改为书面通知其他股东，30日内未答复视为同意。"),
+        ("股东向股东以外的人转让股权，应当经其他股东过半数同意。", False, "2023年新公司法第84条取消了过半数同意的要求，改为书面通知制，其他股东自接到书面通知之日起满三十日未答复的，视为放弃优先购买权。"),
     ]
     for content, is_correct, explanation in law_judgments:
         result = _gen_judgment(content, is_correct, explanation, 2)
@@ -1639,8 +1639,8 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
 
     # --- 企业所得税税额计算 ---
     taxable_incomes = [50, 100, 200, 300, 500, 800, 1000, 2000, 3000, 5000, 10000, 20000]
-    rates_tax = [0.25, 0.20, 0.15]
-    rate_labels = {0.25: "25%", 0.20: "20%（小型微利企业）", 0.15: "15%（高新技术企业）"}
+    rates_tax = [0.25, 0.15]
+    rate_labels = {0.25: "25%", 0.15: "15%（高新技术企业）"}
     for income in taxable_incomes:
         for rate in rates_tax:
             tax = round(income * rate, 2)
@@ -1670,10 +1670,8 @@ def gen_tax_extra(db: Session, kps: dict[str, int]) -> int:
             random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
             _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-            # 小型微利企业实际享受减免优惠，有效税率低于20%，此处按标准税率20%计算
-            _note = "注：小型微利企业实际享受减免优惠，有效税率低于20%，此处按标准税率计算。" if rate == 0.20 else ""
             _add_question(db, kps["TAX-04-01"], "single_choice", content, _ans,
-                          f"应纳税额=应纳税所得额×税率={income}×{rate_labels[rate]}={tax}万元。{_note}",
+                          f"应纳税额=应纳税所得额×税率={income}×{rate_labels[rate]}={tax}万元。",
                           3, "mock", opts_data)
             count += 1
 
@@ -2421,7 +2419,7 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
 
     # --- 3. 企业所得税应纳税额（更多组合） ---
     incomes = [20, 30, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000, 20000, 25000]
-    rates_cit = [(0.25, "25%"), (0.20, "20%"), (0.15, "15%"), (0.10, "10%（非居民企业）")]
+    rates_cit = [(0.25, "25%"), (0.15, "15%")]
     for income in incomes:
         for rate_val, rate_label in rates_cit:
             tax = round(income * rate_val, 2)
