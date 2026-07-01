@@ -90,7 +90,6 @@ def generate_question(
             QuestionOptionResponse(
                 label=o.label,
                 content=o.content,
-                is_correct=o.is_correct,
             )
             for o in question.options
         ],
@@ -134,7 +133,6 @@ def generate_variants(
                 QuestionOptionResponse(
                     label=o.label,
                     content=o.content,
-                    is_correct=o.is_correct,
                 )
                 for o in v.options
             ],

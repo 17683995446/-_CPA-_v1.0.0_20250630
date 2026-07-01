@@ -19,11 +19,10 @@ class GenerateQuestionRequest(BaseModel):
 
 
 class QuestionOptionResponse(BaseModel):
-    """题目选项响应。"""
+    """题目选项响应。注意：不返回 is_correct 字段，防止前端泄露答案。"""
 
     label: str
     content: str
-    is_correct: bool
 
 
 class QuestionResponse(BaseModel):
@@ -61,7 +60,6 @@ def question_to_response(q: "Question") -> QuestionResponse:
             QuestionOptionResponse(
                 label=o.label,
                 content=o.content,
-                is_correct=o.is_correct,
             )
             for o in sorted_options
         ],
