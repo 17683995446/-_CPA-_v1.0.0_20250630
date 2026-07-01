@@ -3128,8 +3128,8 @@ def _shuffle_all_options(db: Session) -> int:
     核心思路：保持 label 固定为 A/B/C/D（按 rowid 顺序），
     只交换 content 和 is_correct 字段，避免标签与行顺序错乱。
 
+    所有题型（含真题）全部参与打乱，避免"答案总在第一个"的问题。
     判断题特殊处理：随机交换 A/B 位置，确保约 50% 正确答案在 A、50% 在 B。
-    判断题（含真题）全部参与打乱，避免"答案总在第一个"的问题。
     """
     questions = db.query(Question).all()
     count = 0
@@ -3141,19 +3141,29 @@ def _shuffle_all_options(db: Session) -> int:
 
         # 判断题：随机交换 A/B，同步更新 answer 字段
         if q.question_type == "judgment":
-            if random.random() < 0.5:
-                # 交换两个选项的 content 和 is_correct
-                opts[0].content, opts[1].content = opts[1].content, opts[0].content
-                opts[0].is_correct, opts[1].is_correct = opts[1].is_correct, opts[0].is_correct
+            # 先修复可能的异常：确保只有一个正确选项
+            correct_opts = [o for o in opts if o.is_correct]
+            if len(correct_opts) != 1:
+                # 修复：根据 answer 文本重设 is_correct
+                for o in opts:
+                    o.is_correct = (o.content == q.answer)
+            # 确保选项内容为"正确"和"错误"
+            contents = [o.content for o in opts]
+            if '正确' not in contents or '错误' not in contents:
+                # 修复：重设选项内容
+                opts[0].content = "正确"
+                opts[0].is_correct = (q.answer == "正确")
+                opts[1].content = "错误"
+                opts[1].is_correct = (q.answer == "错误")
+            else:
+                if random.random() < 0.5:
+                    opts[0].content, opts[1].content = opts[1].content, opts[0].content
+                    opts[0].is_correct, opts[1].is_correct = opts[1].is_correct, opts[0].is_correct
             # answer 保持为"正确"或"错误"文本，前端通过 content 匹配
             count += 1
             continue
 
-        # 真题的非判断题：跳过，保留原始选项顺序
-        if q.source == "past_exam":
-            continue
-
-        # 单选/多选题：打乱内容和正确性标记（同步打乱，保持对应关系）
+        # 单选/多选题（含真题）：打乱内容和正确性标记
         contents = [o.content for o in opts]
         correct_flags = [o.is_correct for o in opts]
         paired = list(zip(contents, correct_flags))
@@ -3173,6 +3183,81 @@ def _shuffle_all_options(db: Session) -> int:
         count += 1
 
     return count
+
+
+def fix_existing_database(db: Session) -> dict:
+    """
+    修复已有数据库中的选项顺序和数据完整性问题。
+
+    在服务器启动时自动调用，无需删除数据库重建。
+    修复内容：
+    1. 打乱所有题目的选项顺序（包括真题单选题）
+    2. 修复判断题的数据异常（两个正确选项、缺失选项等）
+    3. 确保单选题的 answer 字段与 is_correct 选项的 label 一致
+
+    返回修复统计信息。
+    """
+    stats = {"shuffled": 0, "judgment_fixed": 0, "answer_fixed": 0, "total": 0}
+
+    questions = db.query(Question).all()
+    for q in questions:
+        opts = list(q.options)
+        if len(opts) <= 1:
+            continue
+        stats["total"] += 1
+
+        if q.question_type == "judgment":
+            # 修复判断题异常
+            correct_opts = [o for o in opts if o.is_correct]
+            contents = [o.content for o in opts]
+
+            need_fix = False
+            if len(correct_opts) != 1:
+                need_fix = True
+            if '正确' not in contents or '错误' not in contents:
+                need_fix = True
+            if len(contents) != len(set(contents)):
+                need_fix = True
+
+            if need_fix:
+                stats["judgment_fixed"] += 1
+                # 根据答案文本重建选项
+                opts[0].content = "正确"
+                opts[0].is_correct = (q.answer == "正确")
+                if len(opts) > 1:
+                    opts[1].content = "错误"
+                    opts[1].is_correct = (q.answer == "错误")
+
+            # 随机交换 A/B 位置
+            if random.random() < 0.5:
+                opts[0].content, opts[1].content = opts[1].content, opts[0].content
+                opts[0].is_correct, opts[1].is_correct = opts[1].is_correct, opts[0].is_correct
+
+        else:
+            # 单选题：检查 answer 与 is_correct 是否一致
+            correct_label = next((o.label for o in opts if o.is_correct), None)
+            if correct_label and q.answer != correct_label:
+                stats["answer_fixed"] += 1
+                q.answer = correct_label
+
+            # 打乱选项顺序
+            contents = [o.content for o in opts]
+            correct_flags = [o.is_correct for o in opts]
+            paired = list(zip(contents, correct_flags))
+            random.shuffle(paired)
+
+            new_answer = None
+            for i, opt in enumerate(opts):
+                opt.content, opt.is_correct = paired[i]
+                if opt.is_correct:
+                    new_answer = opt.label
+            if new_answer:
+                q.answer = new_answer
+
+            stats["shuffled"] += 1
+
+    db.commit()
+    return stats
 
 
 # ========== 解析增强：通俗化 + 记忆口诀 ==========

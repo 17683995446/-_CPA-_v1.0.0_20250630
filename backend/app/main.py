@@ -42,24 +42,33 @@ async def lifespan(app: FastAPI):
 
     测试隔离：当 config.AUTO_SEED_ON_STARTUP=False 时跳过种子数据与题库生成，
     避免测试时污染真实数据库文件。
+    数据完整性修复（fix_existing_database）始终执行，不受此开关控制。
     """
     init_db()
-    if not settings.AUTO_SEED_ON_STARTUP:
-        yield
-        return
 
     from app.db.session import SessionLocal
     from app.models import Question
 
     db = SessionLocal()
     try:
-        run_seed(db)
-        q_count = db.query(Question).count()
-        if q_count < settings.QUESTION_BANK_THRESHOLD:
-            print(f"题库仅 {q_count} 题，开始批量生成...")
-            generate_mass_questions(db)
-            final_count = db.query(Question).count()
-            print(f"题库生成完成，共 {final_count} 题")
+        if settings.AUTO_SEED_ON_STARTUP:
+            run_seed(db)
+            q_count = db.query(Question).count()
+            if q_count < settings.QUESTION_BANK_THRESHOLD:
+                print(f"题库仅 {q_count} 题，开始批量生成...")
+                generate_mass_questions(db)
+                final_count = db.query(Question).count()
+                print(f"题库生成完成，共 {final_count} 题")
+
+        # 启动时自动修复已有题库的选项顺序和数据完整性（始终执行）
+        from app.mass_questions import fix_existing_database
+        fix_stats = fix_existing_database(db)
+        if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0:
+            print(f"题库修复: 打乱{fix_stats['shuffled']}题, "
+                  f"判断题修复{fix_stats['judgment_fixed']}题, "
+                  f"答案修正{fix_stats['answer_fixed']}题")
+        else:
+            print(f"题库选项已打乱: {fix_stats['shuffled']}题")
     finally:
         db.close()
     yield
