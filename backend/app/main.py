@@ -28,11 +28,14 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routers import register_routes
 from app.config import settings
 from app.db.session import init_db
+from app.logging_config import setup_logging
 from app.middleware import register_middleware
 from app.question_data import fix_existing_database, generate_mass_questions
 from app.seed_data import run_seed
 
-logger = logging.getLogger(__name__)
+# 初始化日志系统
+setup_logging(settings.LOG_LEVEL)
+logger = logging.getLogger("app.main")
 STATIC_DIR = Path(__file__).parent / "static"
 
 
@@ -57,21 +60,20 @@ async def lifespan(app: FastAPI):
             run_seed(db)
             q_count = db.query(Question).count()
             if q_count < settings.QUESTION_BANK_THRESHOLD:
-                print(f"题库仅 {q_count} 题，开始批量生成...")
+                logger.info("题库仅 %d 题，开始批量生成...", q_count)
                 generate_mass_questions(db)
                 final_count = db.query(Question).count()
-                print(f"题库生成完成，共 {final_count} 题")
+                logger.info("题库生成完成，共 %d 题", final_count)
 
         # 启动时自动修复已有题库的选项顺序和数据完整性（始终执行）
         fix_stats = fix_existing_database(db)
         dedup = fix_stats.get("dedup_fixed", 0)
         if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0 or dedup > 0:
-            print(f"题库修复: 打乱{fix_stats['shuffled']}题, "
-                  f"判断题修复{fix_stats['judgment_fixed']}题, "
-                  f"答案修正{fix_stats['answer_fixed']}题, "
-                  f"选项去重{dedup}题")
+            logger.info("题库修复: 打乱%d题, 判断题修复%d题, 答案修正%d题, 选项去重%d题",
+                        fix_stats["shuffled"], fix_stats["judgment_fixed"],
+                        fix_stats["answer_fixed"], dedup)
         else:
-            print(f"题库选项已打乱: {fix_stats['shuffled']}题")
+            logger.info("题库选项已打乱: %d题", fix_stats["shuffled"])
     finally:
         db.close()
     yield
@@ -88,6 +90,17 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
+        description=(
+            "CPA 注册会计师智能学习平台 API\n\n"
+            "## 核心功能\n"
+            "- **自适应学习**：BKT 知识追踪 + FSRS 间隔重复算法\n"
+            "- **题库管理**：5000+ 题目，涵盖 CPA 六大科目\n"
+            "- **知识图谱**：可视化知识点关联与学习路径\n"
+            "- **游戏化激励**：等级、XP、成就、连续学习\n"
+            "- **分录判错**：会计分录自动批改\n\n"
+            "## 测试\n"
+            "访问 `/docs` 查看 Swagger UI，`/redoc` 查看 ReDoc 文档。"
+        ),
         lifespan=lifespan,
     )
 

@@ -6,8 +6,6 @@
 - 知识图谱可视化数据兼容前端图表库
 - 学习路径遵循前置依赖拓扑排序
 """
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -26,9 +24,9 @@ router = APIRouter(prefix="/api/knowledge", tags=["知识图谱"])
 
 @router.get("/points", response_model=list[KnowledgePointResponse])
 def list_knowledge_points(
-    subject: Optional[str] = None,
+    subject: str | None = None,
     db: Session = Depends(get_db),
-):
+) -> list[KnowledgePointResponse]:
     """查询知识点列表（可按科目过滤）。"""
     query = db.query(KnowledgePoint)
     if subject:
@@ -37,7 +35,7 @@ def list_knowledge_points(
 
 
 @router.get("/points/{kp_id}", response_model=KnowledgePointResponse)
-def get_knowledge_point(kp_id: int, db: Session = Depends(get_db)):
+def get_knowledge_point(kp_id: int, db: Session = Depends(get_db)) -> KnowledgePointResponse:
     """获取知识点详情。"""
     kp = db.query(KnowledgePoint).filter(KnowledgePoint.id == kp_id).first()
     if kp is None:
@@ -49,7 +47,7 @@ def get_knowledge_point(kp_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/points", response_model=KnowledgePointResponse, status_code=status.HTTP_201_CREATED)
-def create_knowledge_point(req: KnowledgePointCreate, db: Session = Depends(get_db)):
+def create_knowledge_point(req: KnowledgePointCreate, db: Session = Depends(get_db)) -> KnowledgePointResponse:
     """创建知识点。"""
     if db.query(KnowledgePoint).filter(KnowledgePoint.code == req.code).first():
         raise HTTPException(
@@ -74,9 +72,9 @@ def create_knowledge_point(req: KnowledgePointCreate, db: Session = Depends(get_
 
 @router.get("/graph", response_model=KnowledgeGraphResponse)
 def get_knowledge_graph(
-    subject: Optional[str] = None,
+    subject: str | None = None,
     db: Session = Depends(get_db),
-):
+) -> KnowledgeGraphResponse:
     """获取知识图谱可视化数据。"""
     graph = KnowledgeGraphBuilder.build_from_db(db, subject=subject)
     viz = graph.to_visualization()
@@ -84,7 +82,7 @@ def get_knowledge_graph(
 
 
 @router.get("/graph/learning-path/{kp_id}", response_model=LearningPathResponse)
-def get_learning_path(kp_id: int, db: Session = Depends(get_db)):
+def get_learning_path(kp_id: int, db: Session = Depends(get_db)) -> LearningPathResponse:
     """获取到目标知识点的学习路径。"""
     kp = db.query(KnowledgePoint).filter(KnowledgePoint.id == kp_id).first()
     if kp is None:
@@ -119,7 +117,7 @@ def get_learning_path(kp_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/graph/neighbors/{kp_id}")
-def get_kp_neighbors(kp_id: int, db: Session = Depends(get_db)):
+def get_kp_neighbors(kp_id: int, db: Session = Depends(get_db)) -> dict:
     """获取单个知识点的邻居关系图谱数据。
 
     返回中心知识点及其前置、后续、关联知识点，用于思维导图视图。
@@ -188,7 +186,7 @@ def create_knowledge_edge(
     target_id: int,
     relation_type: str = "prerequisite",
     db: Session = Depends(get_db),
-):
+) -> dict:
     """创建知识点关联边。"""
     for kid, label in [(source_id, "source"), (target_id, "target")]:
         if not db.query(KnowledgePoint).filter(KnowledgePoint.id == kid).first():

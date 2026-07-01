@@ -22,7 +22,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 
 # 预生成数据库和题库（构建时完成，启动时直接用）
-RUN python -c "from app.db.session import init_db; from app.seed_data import run_seed; from app.mass_questions import generate_mass_questions; from app.db.session import SessionLocal; from app.models import Question; init_db(); db=SessionLocal(); run_seed(db); generate_mass_questions(db); cnt=db.query(Question).count(); print(f'题目数: {cnt}'); db.close()"
+RUN python -c "from app.db.session import init_db; from app.seed_data import run_seed; from app.question_data import generate_mass_questions; from app.db.session import SessionLocal; from app.models import Question; init_db(); db=SessionLocal(); run_seed(db); generate_mass_questions(db); cnt=db.query(Question).count(); print(f'题目数: {cnt}'); db.close()"
+
+# 执行 Alembic 迁移（确保数据库结构最新）
+RUN cd /app && alembic upgrade head 2>&1 || echo "Alembic migration skipped (already up to date)"
 
 # 配置 Nginx
 RUN rm -f /etc/nginx/sites-enabled/default

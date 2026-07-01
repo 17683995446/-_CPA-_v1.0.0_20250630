@@ -69,7 +69,7 @@ def get_journal_validator() -> JournalEntryValidator:
 
 
 def get_gamification_engine() -> GamificationEngine:
-    """获取游戏化引擎单例，参数从 config 注入以消除配置双源。"""
+    """获取游戏化引擎单例，所有参数从 config 注入以消除配置双源。"""
     global _gamification_engine
     if _gamification_engine is None:
         _gamification_engine = GamificationEngine(
@@ -77,6 +77,13 @@ def get_gamification_engine() -> GamificationEngine:
             xp_per_streak_day=settings.XP_PER_STREAK_DAY,
             streak_protection_default=settings.STREAK_PROTECTION_DEFAULT,
         )
+        # 覆盖引擎类常量，使所有业务参数可由 config 控制
+        _gamification_engine.CRITICAL_CHANCE = settings.GAMIFICATION_CRITICAL_CHANCE
+        _gamification_engine.CRITICAL_MULTIPLIER = settings.GAMIFICATION_CRITICAL_MULTIPLIER
+        _gamification_engine.BASE_LEVEL_XP = settings.GAMIFICATION_BASE_LEVEL_XP
+        _gamification_engine.LEVEL_GROWTH_RATE = settings.GAMIFICATION_LEVEL_GROWTH_RATE
+        _gamification_engine.STREAK_PROTECTION_MAX = settings.GAMIFICATION_STREAK_PROTECTION_MAX
+        _gamification_engine.XP_STREAK_BONUS_THRESHOLD = settings.GAMIFICATION_STREAK_BONUS_THRESHOLD
     return _gamification_engine
 
 

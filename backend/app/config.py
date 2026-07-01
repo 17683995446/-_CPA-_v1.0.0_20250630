@@ -46,14 +46,32 @@ class Settings:
     BKT_DEFAULT_P_GUESS: float = 0.25
     BKT_DEFAULT_P_SLIP: float = 0.1
 
-    # --- 游戏化参数（阶段5 使用）---
+    # --- 游戏化参数 ---
     XP_PER_CORRECT: int = 10
     XP_PER_STREAK_DAY: int = 5
     STREAK_PROTECTION_DEFAULT: int = 1
+    # 变比奖励
+    GAMIFICATION_CRITICAL_CHANCE: float = 0.1
+    GAMIFICATION_CRITICAL_MULTIPLIER: float = 3.0
+    # 等级系统
+    GAMIFICATION_BASE_LEVEL_XP: int = 100
+    GAMIFICATION_LEVEL_GROWTH_RATE: float = 1.5
+    # Streak 保护
+    GAMIFICATION_STREAK_PROTECTION_MAX: int = 3
+    GAMIFICATION_STREAK_BONUS_THRESHOLD: int = 7
+
+    # --- BKT 掌握度阈值 ---
+    BKT_MASTERY_UNKNOWN: float = 0.3       # < 0.3 = unknown
+    BKT_MASTERY_LEARNING: float = 0.7      # < 0.7 = learning
+    BKT_MASTERY_MASTERING: float = 0.95    # < 0.95 = mastering
+    BKT_MASTERY_MASTERED: float = 0.95     # >= 0.95 = mastered
 
     # --- 题库配置 ---
     QUESTION_BANK_THRESHOLD: int = 5000  # 题库不足此数时触发批量生成
     AUTO_SEED_ON_STARTUP: bool = True    # 启动时是否自动初始化种子数据与题库
+
+    # --- 日志配置 ---
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
     def ensure_dirs(self) -> None:
         """确保运行时目录存在。"""

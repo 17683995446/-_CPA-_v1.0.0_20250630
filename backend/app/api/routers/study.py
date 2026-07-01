@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_user_or_404
 from app.db.session import get_db
 from app.models import StudySession, User
 from app.schemas.study import (
@@ -26,15 +27,9 @@ def start_session(
     user_id: int,
     req: StartSessionRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_user_or_404),
 ):
     """开始学习会话。"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"用户 {user_id} 不存在",
-        )
-
     session = StudySession(
         user_id=user_id,
         subject=req.subject,
@@ -47,7 +42,7 @@ def start_session(
 
 
 @router.get("/sessions/{session_id}", response_model=StudySessionResponse)
-def get_session(session_id: int, db: Session = Depends(get_db)):
+def get_session(session_id: int, db: Session = Depends(get_db)) -> StudySessionResponse:
     """获取学习会话详情。"""
     session = db.query(StudySession).filter(StudySession.id == session_id).first()
     if session is None:
@@ -63,7 +58,7 @@ def update_session(
     session_id: int,
     req: UpdateSessionRequest,
     db: Session = Depends(get_db),
-):
+) -> StudySessionResponse:
     """更新学习会话（结束时调用）。"""
     session = db.query(StudySession).filter(StudySession.id == session_id).first()
     if session is None:
@@ -96,7 +91,7 @@ def list_user_sessions(
     user_id: int,
     limit: int = 20,
     db: Session = Depends(get_db),
-):
+) -> list[StudySessionResponse]:
     """获取用户的学习会话历史。"""
     sessions = (
         db.query(StudySession)

@@ -9,6 +9,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_user_or_404
 from app.db.session import get_db
 from app.models import User, UserProfile
 from app.schemas.user import (
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/api/users", tags=["用户管理"])
 def search_users(
     username: str | None = Query(None, description="按用户名搜索"),
     db: Session = Depends(get_db),
-):
+) -> list[dict]:
     """搜索用户列表（用于登录时查找用户）。"""
     query = db.query(User)
     if username:
@@ -39,7 +40,7 @@ def search_users(
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(req: UserCreate, db: Session = Depends(get_db)):
+def create_user(req: UserCreate, db: Session = Depends(get_db)) -> UserResponse:
     """注册新用户。"""
     if db.query(User).filter(User.username == req.username).first():
         raise HTTPException(
@@ -73,19 +74,13 @@ def create_user(req: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user: User = Depends(get_user_or_404)) -> UserResponse:
     """获取用户信息。"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"用户 {user_id} 不存在",
-        )
     return user
 
 
 @router.get("/{user_id}/profile", response_model=UserProfileResponse)
-def get_user_profile(user_id: int, db: Session = Depends(get_db)):
+def get_user_profile(user_id: int, db: Session = Depends(get_db)) -> UserProfileResponse:
     """获取用户画像。"""
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     if profile is None:
@@ -99,7 +94,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
 @router.patch("/{user_id}/profile", response_model=UserProfileResponse)
 def update_user_profile(
     user_id: int, req: UserProfileUpdate, db: Session = Depends(get_db)
-):
+) -> UserProfileResponse:
     """更新用户画像。"""
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     if profile is None:

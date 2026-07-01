@@ -1,5 +1,5 @@
 # CPA Learning App - Backend Dependencies
-# Stage 1: Foundation & Data Models
+# Stage 2: Modular Architecture & Migrations
 
 fastapi==0.138.2
 uvicorn==0.49.0
@@ -7,6 +7,7 @@ pydantic==2.13.4
 email-validator==2.2.0
 SQLAlchemy==2.0.51
 bcrypt==4.2.0
+alembic==1.18.5
 pytest==9.1.1
 pytest-asyncio==1.4.0
 httpx==0.28.1

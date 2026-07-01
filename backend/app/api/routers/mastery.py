@@ -50,7 +50,7 @@ def get_all_mastery(
     db: Session = Depends(get_db),
     user: User = Depends(get_user_or_404),
     bkt_engine: BKTEngine = Depends(get_bkt_engine),
-):
+) -> BatchMasteryResponse:
     """
     批量获取用户所有知识点的掌握度。
 
@@ -123,7 +123,7 @@ def get_mastery(
     kp_id: int,
     db: Session = Depends(get_db),
     bkt_engine: BKTEngine = Depends(get_bkt_engine),
-):
+) -> MasteryResponse:
     """获取用户对某知识点的掌握度。"""
     mastery_orm = AnswerService._get_or_create_mastery(db, user_id, kp_id, bkt_engine)
     state = MasteryState.from_orm(mastery_orm)
@@ -147,7 +147,7 @@ def submit_answer(
     db: Session = Depends(get_db),
     user: User = Depends(get_user_or_404),
     answer_service: AnswerService = Depends(_get_answer_service),
-):
+) -> SubmitAnswerResponse:
     """
     提交答题结果（核心循环）。
 

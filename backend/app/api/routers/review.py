@@ -20,6 +20,7 @@ from app.schemas.review import (
     ReviewCardResponse,
     SubmitReviewRequest,
     SubmitReviewResponse,
+    review_card_to_response,
 )
 
 router = APIRouter(prefix="/api/review", tags=["间隔重复"])
@@ -30,7 +31,7 @@ def get_due_cards(
     user_id: int,
     target_date: date | None = None,
     db: Session = Depends(get_db),
-):
+) -> DueCardsResponse:
     """获取用户今日到期卡片。"""
     target = target_date or date.today()
     cards = (
@@ -40,21 +41,7 @@ def get_due_cards(
     )
     return DueCardsResponse(
         total=len(cards),
-        cards=[
-            ReviewCardResponse(
-                id=c.id,
-                question_id=c.question_id,
-                knowledge_point_id=c.knowledge_point_id,
-                stability=c.stability,
-                difficulty=c.difficulty,
-                due=c.due,
-                last_review=c.last_review.isoformat() if c.last_review else None,
-                reps=c.reps,
-                lapses=c.lapses,
-                state=c.state,
-            )
-            for c in cards
-        ],
+        cards=[review_card_to_response(c) for c in cards],
     )
 
 
@@ -65,7 +52,7 @@ def submit_review(
     req: SubmitReviewRequest,
     db: Session = Depends(get_db),
     fsrs_engine: FSRSEngine = Depends(get_fsrs_engine),
-):
+) -> SubmitReviewResponse:
     """提交复习评分，更新卡片调度状态。"""
     card_orm = (
         db.query(ReviewCard)
@@ -125,7 +112,7 @@ def create_review_card(
     question_id: int,
     knowledge_point_id: int,
     db: Session = Depends(get_db),
-):
+) -> ReviewCardResponse:
     """为用户创建复习卡片（关联题目和知识点）。"""
     card = ReviewCard(
         user_id=user_id,
@@ -136,15 +123,4 @@ def create_review_card(
     db.add(card)
     db.commit()
     db.refresh(card)
-    return ReviewCardResponse(
-        id=card.id,
-        question_id=card.question_id,
-        knowledge_point_id=card.knowledge_point_id,
-        stability=card.stability,
-        difficulty=card.difficulty,
-        due=card.due,
-        last_review=card.last_review.isoformat() if card.last_review else None,
-        reps=card.reps,
-        lapses=card.lapses,
-        state=card.state,
-    )
+    return review_card_to_response(card)

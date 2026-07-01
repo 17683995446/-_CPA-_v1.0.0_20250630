@@ -8,6 +8,7 @@
 - 使用 register_routes() 集中注册，避免 main.py 中逐一导入
 """
 from fastapi import FastAPI
+from fastapi.routing import APIRouter
 
 from app.api.routers import (
     gamification,
@@ -20,16 +21,16 @@ from app.api.routers import (
     users,
 )
 
-# 路由模块列表（注册顺序即 OpenAPI 文档中的显示顺序）
-_ROUTER_MODULES = [
-    users,
-    knowledge,
-    questions,
-    review,
-    mastery,
-    gamification,
-    journal,
-    study,
+# 路由模块及 OpenAPI 标签元数据（注册顺序即文档显示顺序）
+_ROUTER_MODULES: list[tuple[APIRouter, str, str]] = [
+    (users.router, "用户管理", "用户注册、查询、信息管理"),
+    (knowledge.router, "知识图谱", "知识点、知识边、学习路径、可视化"),
+    (questions.router, "题目管理", "按知识点出题、随机出题、变体生成"),
+    (review.router, "复习系统", "FSRS 间隔重复复习卡片管理"),
+    (mastery.router, "掌握度追踪", "BKT 知识追踪、批量掌握度查询"),
+    (gamification.router, "游戏化", "等级、XP、成就、连续学习"),
+    (journal.router, "学习日志", "会计分录判错练习"),
+    (study.router, "学习会话", "学习会话管理、答题记录"),
 ]
 
 
@@ -38,9 +39,13 @@ def register_routes(app: FastAPI) -> None:
 
     使用集中注册替代 main.py 中的逐一 include_router 调用，
     新增路由只需在此列表中添加模块即可。
+    每个路由模块携带 OpenAPI 标签元数据，使 API 文档自动分组。
     """
-    for module in _ROUTER_MODULES:
-        app.include_router(module.router)
+    for router, tag_name, tag_desc in _ROUTER_MODULES:
+        # 确保 router 的 tags 包含中文标签
+        if not router.tags:
+            router.tags = [tag_name]
+        app.include_router(router)
 
 
 __all__ = ["register_routes"]

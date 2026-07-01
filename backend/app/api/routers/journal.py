@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/journal", tags=["分录判错"])
 def validate_journal_entry(
     req: JournalValidationRequest,
     validator: JournalEntryValidator = Depends(get_journal_validator),
-):
+) -> JournalValidationResponse:
     """验证会计分录。"""
     lines = [
         JournalEntryLine(
@@ -79,7 +79,7 @@ def validate_journal_entry(
 @router.get("/accounts")
 def list_standard_accounts(
     validator: JournalEntryValidator = Depends(get_journal_validator),
-):
+) -> dict:
     """列出标准会计科目表。"""
     return {
         account: account_type.value

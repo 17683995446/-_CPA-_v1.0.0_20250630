@@ -35,7 +35,7 @@ def _get_or_create_streak(db: Session, user_id: int) -> UserStreak:
 
 
 @router.get("/{user_id}/streak", response_model=StreakResponse)
-def get_streak(user_id: int, db: Session = Depends(get_db)):
+def get_streak(user_id: int, db: Session = Depends(get_db)) -> StreakResponse:
     """获取用户连续学习状态。"""
     streak_orm = _get_or_create_streak(db, user_id)
     return StreakResponse(
@@ -52,7 +52,7 @@ def update_streak(
     req: UpdateStreakRequest,
     db: Session = Depends(get_db),
     game_engine: GamificationEngine = Depends(get_gamification_engine),
-):
+) -> StreakUpdateResponse:
     """更新连续学习天数。"""
     streak_orm = _get_or_create_streak(db, user_id)
     streak = StreakInfo.from_orm(streak_orm)
@@ -82,7 +82,7 @@ def get_level(
     user_id: int,
     db: Session = Depends(get_db),
     game_engine: GamificationEngine = Depends(get_gamification_engine),
-):
+) -> LevelInfoResponse:
     """获取用户等级信息。"""
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     if profile is None:
@@ -101,7 +101,7 @@ def get_level(
 
 
 @router.get("/{user_id}/achievements", response_model=list[AchievementResponse])
-def get_achievements(user_id: int, db: Session = Depends(get_db)):
+def get_achievements(user_id: int, db: Session = Depends(get_db)) -> list[AchievementResponse]:
     """获取成就列表（含解锁状态）。"""
     all_achievements = db.query(Achievement).all()
     unlocked_ids = {
@@ -131,7 +131,7 @@ def check_achievements(
     user_id: int,
     db: Session = Depends(get_db),
     game_engine: GamificationEngine = Depends(get_gamification_engine),
-):
+) -> list[AchievementResponse]:
     """检查并解锁成就。"""
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     if profile is None:

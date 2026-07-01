@@ -53,3 +53,24 @@ class SubmitReviewResponse(BaseModel):
     difficulty_after: float
     next_due: date
     state: str
+
+
+def review_card_to_response(card: "ReviewCard") -> ReviewCardResponse:
+    """
+    将 ReviewCard ORM 模型转换为 ReviewCardResponse。
+
+    消除路由层重复的 ReviewCardResponse 构造逻辑（到期列表与创建卡片两处）。
+    last_review 由 datetime 序列化为 ISO 格式字符串，其余字段直接映射。
+    """
+    return ReviewCardResponse(
+        id=card.id,
+        question_id=card.question_id,
+        knowledge_point_id=card.knowledge_point_id,
+        stability=card.stability,
+        difficulty=card.difficulty,
+        due=card.due,
+        last_review=card.last_review.isoformat() if card.last_review else None,
+        reps=card.reps,
+        lapses=card.lapses,
+        state=card.state,
+    )

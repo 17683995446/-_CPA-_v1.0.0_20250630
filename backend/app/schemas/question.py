@@ -45,38 +45,60 @@ class QuestionResponse(BaseModel):
     exam_point: Optional[str] = None
 
 
-def question_to_response(q: "Question") -> QuestionResponse:
+def question_to_response(q) -> QuestionResponse:
     """
-    将 ORM Question 模型转换为 QuestionResponse。
+    将题目对象转换为 QuestionResponse，消除路由层重复的构造逻辑。
 
-    消除路由层4处重复的 QuestionResponse 构造逻辑。
-    选项按 label 排序，确保前端始终显示 A/B/C/D 顺序。
+    通过鸭子类型同时支持两种来源：
+    - ORM Question 模型（题库真题/模拟题）：来自数据库，具有主键 ``.id``
+    - GeneratedQuestion 数据类（AI 出题引擎生成）：来自引擎，具有
+      ``.knowledge_point_code`` / ``.cognitive_level`` / ``.variant_id`` 字段
 
-    关键修复：answer 字段从 is_correct 派生，而非信任 q.answer 文本。
-    这确保了即使选项被打乱、label 被重排，返回前端的答案键始终正确。
+    选项统一按 label 排序，确保前端始终显示 A/B/C/D 顺序。
+
+    ORM 路径关键修复：answer 从选项 is_correct 派生而非信任 q.answer 文本，
+    确保选项被打乱、label 被重排后返回前端的答案键始终正确。
+    生成路径：直接使用 GeneratedQuestion 已计算好的 answer 文本与元数据
+    （引擎已保证选项 label 按 A/B/C/D 顺序生成，排序结果不变）。
     """
     sorted_options = sorted(q.options, key=lambda o: o.label)
 
-    # 从 is_correct 派生正确答案，确保与选项标签一致
-    correct_labels = [o.label for o in sorted_options if o.is_correct]
-    if q.question_type == "judgment":
-        # 判断题：answer 是内容文本（"正确"/"错误"）
-        correct_opt = next((o for o in sorted_options if o.is_correct), None)
-        derived_answer = correct_opt.content if correct_opt else q.answer
-    elif q.question_type == "multiple_choice":
-        # 多选题：answer 是多标签拼接（如 "AC"）
-        derived_answer = "".join(correct_labels) if correct_labels else q.answer
-    elif correct_labels:
-        # 单选题等：answer 是单个标签（如 "B"）
-        derived_answer = correct_labels[0]
+    # 区分来源：ORM Question 有数据库主键 .id；GeneratedQuestion 数据类无 .id
+    is_orm = hasattr(q, "id")
+
+    if is_orm:
+        # 从 is_correct 派生正确答案，确保与选项标签一致
+        correct_labels = [o.label for o in sorted_options if o.is_correct]
+        if q.question_type == "judgment":
+            # 判断题：answer 是内容文本（"正确"/"错误"）
+            correct_opt = next((o for o in sorted_options if o.is_correct), None)
+            answer = correct_opt.content if correct_opt else q.answer
+        elif q.question_type == "multiple_choice":
+            # 多选题：answer 是多标签拼接（如 "AC"）
+            answer = "".join(correct_labels) if correct_labels else q.answer
+        elif correct_labels:
+            # 单选题等：answer 是单个标签（如 "B"）
+            answer = correct_labels[0]
+        else:
+            # 兜底：journal_entry / tbs 等无选项题型，保留原始 answer
+            answer = q.answer
+
+        question_type = q.question_type
+        knowledge_point_code = ""
+        cognitive_level = "understand"
+        variant_id = f"db_{q.id}"
     else:
-        # 兜底：journal_entry / tbs 等无选项题型，保留原始 answer
-        derived_answer = q.answer
+        # 生成路径：直接使用引擎已计算好的 answer 文本与元数据
+        answer = q.answer
+        question_type = q.question_type.value
+        knowledge_point_code = q.knowledge_point_code
+        cognitive_level = q.cognitive_level.value
+        variant_id = q.variant_id
 
     return QuestionResponse(
-        question_type=q.question_type,
+        question_type=question_type,
         content=q.content,
-        answer=derived_answer,
+        answer=answer,
         explanation=q.explanation or "",
         simple_explanation=getattr(q, "simple_explanation", None),
         mnemonic=getattr(q, "mnemonic", None),
@@ -89,10 +111,10 @@ def question_to_response(q: "Question") -> QuestionResponse:
             )
             for o in sorted_options
         ],
-        knowledge_point_code="",
-        cognitive_level="understand",
+        knowledge_point_code=knowledge_point_code,
+        cognitive_level=cognitive_level,
         source=q.source,
-        variant_id=f"db_{q.id}",
-        exam_year=q.exam_year,
-        exam_point=q.exam_point,
+        variant_id=variant_id,
+        exam_year=getattr(q, "exam_year", None),
+        exam_point=getattr(q, "exam_point", None),
     )
