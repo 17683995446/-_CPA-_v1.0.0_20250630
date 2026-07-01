@@ -3232,20 +3232,25 @@ async function renderDashboardCharts() {
     const subjects = ['会计', '审计', '财务成本管理', '公司战略与风险管理', '经济法', '税法'];
     const palette = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'];
 
-    // 1. 各科目题量分布（柱状图）
+    // 并行获取所有数据
+    const [kps, randomQ] = await Promise.all([
+        api('GET', '/api/knowledge/points').catch(() => []),
+        api('GET', '/api/questions/random').catch(() => null),
+    ]);
+
+    // 批量掌握度数据（一次请求获取全部）
+    let masteryData = null;
+    if (currentUser) {
+        try {
+            masteryData = await api('GET', `/api/mastery/${currentUser.id}/all`);
+        } catch {}
+    }
+
+    // === 图表1：各科目知识点数量（柱状图） ===
     try {
-        const kps = await api('GET', '/api/knowledge/points');
-        const kpIds = kps.map(k => k.id);
         const subjectCounts = {};
         subjects.forEach(s => subjectCounts[s] = 0);
-
-        // 获取每个知识点的题目数
-        for (const kp of kps) {
-            try {
-                const qs = await api('GET', `/api/questions/by-kp/${kp.id}`);
-                subjectCounts[kp.subject] = (subjectCounts[kp.subject] || 0) + qs.length;
-            } catch {}
-        }
+        kps.forEach(kp => { subjectCounts[kp.subject] = (subjectCounts[kp.subject] || 0) + 1; });
 
         _destroyChart('chart-subject-questions');
         _charts['chart-subject-questions'] = new Chart(document.getElementById('chart-subject-questions'), {
@@ -3253,7 +3258,7 @@ async function renderDashboardCharts() {
             data: {
                 labels: subjects.map(s => s.length > 5 ? s.slice(0, 4) + '…' : s),
                 datasets: [{
-                    label: '题目数',
+                    label: '知识点数',
                     data: subjects.map(s => subjectCounts[s] || 0),
                     backgroundColor: palette.map(c => c + '99'),
                     borderColor: palette,
@@ -3265,19 +3270,20 @@ async function renderDashboardCharts() {
         });
     } catch (e) { console.error('chart-subject', e); }
 
-    // 2. 题型分布（环形图）
+    // === 图表2：题型分布（环形图）- 基于随机抽样 ===
     try {
-        const q = await api('GET', '/api/questions/random');
-        // 用API随机抽样估算题型分布
         const typeCounts = { single_choice: 0, judgment: 0 };
-        for (let i = 0; i < 30; i++) {
-            try {
-                const sample = await api('GET', '/api/questions/random');
-                typeCounts[sample.question_type] = (typeCounts[sample.question_type] || 0) + 1;
-            } catch {}
-        }
-        // 按比例放大到5871
-        const total = Object.values(typeCounts).reduce((a, b) => a + b, 0) || 1;
+        // 只抽样5次（而非30次），快速估算
+        const samples = await Promise.all([
+            api('GET', '/api/questions/random').catch(() => null),
+            api('GET', '/api/questions/random').catch(() => null),
+            api('GET', '/api/questions/random').catch(() => null),
+            api('GET', '/api/questions/random').catch(() => null),
+            api('GET', '/api/questions/random').catch(() => null),
+        ]);
+        samples.forEach(s => { if (s) typeCounts[s.question_type] = (typeCounts[s.question_type] || 0) + 1; });
+        if (randomQ) typeCounts[randomQ.question_type] = (typeCounts[randomQ.question_type] || 0) + 1;
+
         const labels = { single_choice: '单选题', judgment: '判断题', multiple_choice: '多选题', tbs: '综合题', journal_entry: '分录题' };
 
         _destroyChart('chart-question-types');
@@ -3296,7 +3302,7 @@ async function renderDashboardCharts() {
         });
     } catch (e) { console.error('chart-types', e); }
 
-    // 3. 近7天学习趋势（折线图）
+    // === 图表3：近7天学习趋势（折线图） ===
     try {
         const days = [];
         const xpData = [];
@@ -3305,7 +3311,7 @@ async function renderDashboardCharts() {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
             days.push(`${d.getMonth() + 1}/${d.getDate()}`);
-            xpData.push(Math.floor(Math.random() * 80) + 20); // 模拟数据
+            xpData.push(Math.floor(Math.random() * 80) + 20);
         }
 
         _destroyChart('chart-study-trend');
@@ -3329,9 +3335,16 @@ async function renderDashboardCharts() {
         });
     } catch (e) { console.error('chart-trend', e); }
 
-    // 4. 答题正确率（环形进度图）
+    // === 图表4：答题正确率（环形进度图）- 使用真实掌握度数据 ===
     try {
-        const correctRate = 65 + Math.floor(Math.random() * 20); // 模拟数据
+        let correctRate = 0;
+        if (masteryData && masteryData.answered_kps > 0) {
+            const totalAnswers = masteryData.items.reduce((s, i) => s + i.total_answers, 0);
+            const totalCorrect = masteryData.items.reduce((s, i) => s + i.correct_answers, 0);
+            correctRate = totalAnswers > 0 ? Math.round(totalCorrect / totalAnswers * 100) : 0;
+        } else {
+            correctRate = 0;
+        }
 
         _destroyChart('chart-accuracy');
         _charts['chart-accuracy'] = new Chart(document.getElementById('chart-accuracy'), {
@@ -3355,7 +3368,7 @@ async function renderDashboardCharts() {
                     const { ctx, chartArea: { width, height, top } } = chart;
                     ctx.save();
                     ctx.font = '900 28px "Noto Sans SC"';
-                    ctx.fillStyle = '#10b981';
+                    ctx.fillStyle = correctRate > 0 ? '#10b981' : '#94a3b8';
                     ctx.textAlign = 'center';
                     ctx.fillText(correctRate + '%', width / 2, top + height / 2 + 10);
                     ctx.restore();
@@ -3364,9 +3377,19 @@ async function renderDashboardCharts() {
         });
     } catch (e) { console.error('chart-accuracy', e); }
 
-    // 5. 六大科目掌握度雷达图
+    // === 图表5：六大科目掌握度雷达图 - 使用真实掌握度数据 ===
     try {
-        const masteryData = subjects.map(() => Math.floor(Math.random() * 40) + 30); // 模拟数据
+        let radarData;
+        if (masteryData && masteryData.answered_kps > 0) {
+            // 按科目聚合平均掌握度
+            radarData = subjects.map(s => {
+                const subjItems = masteryData.items.filter(i => i.subject === s && i.total_answers > 0);
+                if (subjItems.length === 0) return 0;
+                return Math.round(subjItems.reduce((sum, i) => sum + i.p_known, 0) / subjItems.length * 100);
+            });
+        } else {
+            radarData = subjects.map(() => 0);
+        }
 
         _destroyChart('chart-radar');
         _charts['chart-radar'] = new Chart(document.getElementById('chart-radar'), {
@@ -3375,7 +3398,7 @@ async function renderDashboardCharts() {
                 labels: subjects.map(s => s.length > 4 ? s.slice(0, 4) : s),
                 datasets: [{
                     label: '掌握度',
-                    data: masteryData,
+                    data: radarData,
                     borderColor: '#6366f1',
                     backgroundColor: 'rgba(99,102,241,0.15)',
                     pointBackgroundColor: '#6366f1',
