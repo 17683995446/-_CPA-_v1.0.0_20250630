@@ -680,11 +680,28 @@ STRATEGY_EXAMS = [
 # ============================================================
 # 汇总所有真题
 # ============================================================
+# 合并原始真题与扩展真题
+# ============================================================
+from app.past_exam_data_ext import (
+    ACCOUNTING_EXAMS_EXT,
+    AUDIT_EXAMS_EXT,
+    FCM_EXAMS_EXT,
+    TAX_EXAMS_EXT,
+    LAW_EXAMS_EXT,
+    STRATEGY_EXAMS_EXT,
+)
+
 ALL_PAST_EXAMS = (
     ACCOUNTING_EXAMS
+    + ACCOUNTING_EXAMS_EXT
     + AUDIT_EXAMS
+    + AUDIT_EXAMS_EXT
     + FCM_EXAMS
+    + FCM_EXAMS_EXT
     + TAX_EXAMS
+    + TAX_EXAMS_EXT
     + LAW_EXAMS
+    + LAW_EXAMS_EXT
     + STRATEGY_EXAMS
+    + STRATEGY_EXAMS_EXT
 )
