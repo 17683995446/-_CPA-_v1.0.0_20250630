@@ -40,8 +40,17 @@ class Question(Base):
     # 标准答案（分录题存 JSON 结构化数据，其他题型存选项标识）
     answer: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # 解析
+    # 解析（详细解析）
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # 通俗易懂简洁解释
+    simple_explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # 记忆口诀/记忆诀窍
+    mnemonic: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # 小贴士（学习建议）
+    study_tip: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # 难度 1-5
     difficulty: Mapped[int] = mapped_column(Integer, default=3, nullable=False)

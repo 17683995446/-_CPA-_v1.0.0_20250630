@@ -32,11 +32,33 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db() -> None:
-    """创建所有表。在应用启动和测试初始化时调用。"""
+    """创建所有表并执行轻量级列迁移。在应用启动和测试初始化时调用。"""
     # 确保所有模型被导入，以便 Base.metadata 包含全部表定义
     import app.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+    # 轻量级列迁移：为已有数据库添加新列（create_all 不会修改已有表）
+    _migrate_columns()
+
+
+def _migrate_columns() -> None:
+    """检查并添加缺失的列到已有表（无需 Alembic 迁移）。"""
+    from sqlalchemy import inspect, text as sa_text
+
+    insp = inspect(engine)
+    if not insp.has_table("questions"):
+        return  # 表不存在，create_all 刚创建，无需迁移
+
+    existing_cols = {col["name"] for col in insp.get_columns("questions")}
+    new_cols = ["simple_explanation", "mnemonic", "study_tip"]
+
+    with engine.connect() as conn:
+        for col in new_cols:
+            if col not in existing_cols:
+                conn.execute(sa_text(f"ALTER TABLE questions ADD COLUMN {col} TEXT"))
+                print(f"  [migrate] 已添加列: questions.{col}")
+        conn.commit()
 
 
 def drop_db() -> None:

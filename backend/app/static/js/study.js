@@ -152,7 +152,6 @@ function displayQuestion(q) {
         html += '</div>';
         html += `
             <div class="explanation-box" id="explanation-box">
-                <h4>解析</h4>
                 <div id="explanation-text"></div>
             </div>
             <div class="action-bar" id="action-bar">
@@ -212,14 +211,46 @@ async function submitAnswer() {
         ? currentQuestion.answer
         : (correctOpt ? `${currentQuestion.answer}．${correctOpt.content}` : currentQuestion.answer);
     const explanation = currentQuestion.explanation || '';
-    document.getElementById('explanation-text').innerHTML =
-        `<p style="margin-bottom:8px"><strong>答案：${answerDisplay}</strong></p>` +
-        explanation.split('\n').map(line => {
-            if (line.trim().startsWith('💡')) {
-                return `<p style="margin-top:10px;padding:10px 14px;background:rgba(245,158,11,0.08);border-radius:8px;color:var(--warning);font-size:13px;line-height:1.6">${line}</p>`;
-            }
-            return `<p style="line-height:1.7">${line}</p>`;
-        }).join('');
+    const simpleExpl = currentQuestion.simple_explanation || '';
+    const mnemonic = currentQuestion.mnemonic || '';
+    const studyTip = currentQuestion.study_tip || '';
+
+    // 构建四个解析卡片
+    let explHtml = `<p style="margin-bottom:10px"><strong>✅ 答案：${answerDisplay}</strong></p>`;
+
+    // 模块1：详细解析
+    if (explanation) {
+        explHtml += `<div class="expl-card expl-detail">
+            <div class="expl-card-title">📖 详细解析</div>
+            <div class="expl-card-body">${explanation.split('\n').map(l => `<p>${l}</p>`).join('')}</div>
+        </div>`;
+    }
+
+    // 模块2：通俗易懂简洁解释
+    if (simpleExpl) {
+        explHtml += `<div class="expl-card expl-simple">
+            <div class="expl-card-title">💡 通俗解释</div>
+            <div class="expl-card-body">${simpleExpl}</div>
+        </div>`;
+    }
+
+    // 模块3：记忆口诀
+    if (mnemonic) {
+        explHtml += `<div class="expl-card expl-mnemonic">
+            <div class="expl-card-title">🧠 记忆口诀</div>
+            <div class="expl-card-body">${mnemonic}</div>
+        </div>`;
+    }
+
+    // 模块4：小贴士
+    if (studyTip) {
+        explHtml += `<div class="expl-card expl-tip">
+            <div class="expl-card-title">📌 小贴士</div>
+            <div class="expl-card-body">${studyTip}</div>
+        </div>`;
+    }
+
+    document.getElementById('explanation-text').innerHTML = explHtml;
     document.getElementById('explanation-box').classList.add('show');
 
     // 答题结果横幅
