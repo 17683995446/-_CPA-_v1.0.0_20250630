@@ -11,7 +11,7 @@
 - 可被路由层注入，也可被其他 Service 或定时任务复用
 """
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -151,21 +151,31 @@ class AnswerService:
                 )
                 .first()
             )
-            if card_orm is not None:
-                card = Card.from_orm(card_orm)
-                if rating is not None:
-                    fsrs_rating = Rating(rating)
-                else:
-                    fsrs_rating = Rating.GOOD if is_correct else Rating.AGAIN
+            # Get-or-create: 答题时自动为题目创建复习卡片
+            if card_orm is None:
+                card_orm = ReviewCard(
+                    user_id=user_id,
+                    question_id=question_id,
+                    knowledge_point_id=knowledge_point_id,
+                    due=date.today(),
+                )
+                db.add(card_orm)
+                db.flush()
 
-                now = datetime.now()
-                fsrs_result = self.fsrs_engine.review(card, fsrs_rating, now)
-                card.to_orm(card_orm)
+            card = Card.from_orm(card_orm)
+            if rating is not None:
+                fsrs_rating = Rating(rating)
+            else:
+                fsrs_rating = Rating.GOOD if is_correct else Rating.AGAIN
 
-                fsrs_updated = True
-                next_due = card_orm.due.isoformat()
-                interval = fsrs_result.interval
-                stability_after = fsrs_result.stability_after
+            now = datetime.now()
+            fsrs_result = self.fsrs_engine.review(card, fsrs_rating, now)
+            card.to_orm(card_orm)
+
+            fsrs_updated = True
+            next_due = card_orm.due.isoformat()
+            interval = fsrs_result.interval
+            stability_after = fsrs_result.stability_after
 
         # --- 3. 游戏化：XP 计算 ---
         import random as _random

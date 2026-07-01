@@ -263,6 +263,7 @@ async function submitAnswer() {
     try {
         const result = await api('POST', `/api/mastery/${currentUser.id}/answer`, {
             knowledge_point_id: currentQuestion.kp_id,
+            question_id: currentQuestion.id || null,
             is_correct: isCorrect,
             difficulty: currentQuestion.difficulty || 3,
         });

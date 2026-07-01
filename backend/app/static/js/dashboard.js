@@ -30,7 +30,7 @@ async function loadDashboard() {
     // 累计答题数
     try {
         const masteryData = await api('GET', `/api/mastery/${currentUser.id}/all`);
-        const totalAns = masteryData.reduce((sum, m) => sum + (m.total_answers || 0), 0);
+        const totalAns = (masteryData.items || []).reduce((sum, m) => sum + (m.total_answers || 0), 0);
         document.getElementById('dash-answered').textContent = totalAns;
         document.getElementById('wb-answered').textContent = totalAns;
     } catch {

@@ -28,6 +28,7 @@ class QuestionOptionResponse(BaseModel):
 class QuestionResponse(BaseModel):
     """题目响应。"""
 
+    id: Optional[int] = None
     question_type: str
     content: str
     answer: str
@@ -96,6 +97,7 @@ def question_to_response(q) -> QuestionResponse:
         variant_id = q.variant_id
 
     return QuestionResponse(
+        id=getattr(q, "id", None),
         question_type=question_type,
         content=q.content,
         answer=answer,
