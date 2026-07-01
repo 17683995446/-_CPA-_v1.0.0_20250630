@@ -390,7 +390,7 @@ def seed_questions(db: Session, code_to_id: dict[str, int]) -> None:
 
         # ===== 审计 =====
         {
-            "kp_code": "AUD-02-01",
+            "kp_code": "AUD-03-01",
             "type": "judgment",
             "content": "审计证据的充分性是对审计证据数量的衡量，适当性是对审计证据质量的衡量。（　）",
             "answer": "正确",
@@ -403,7 +403,7 @@ def seed_questions(db: Session, code_to_id: dict[str, int]) -> None:
             ],
         },
         {
-            "kp_code": "AUD-03-01",
+            "kp_code": "AUD-06-02",
             "type": "single_choice",
             "content": "下列关于审计风险模型的说法中，正确的是（　）。",
             "answer": "A",
@@ -418,7 +418,7 @@ def seed_questions(db: Session, code_to_id: dict[str, int]) -> None:
             ],
         },
         {
-            "kp_code": "AUD-04-01",
+            "kp_code": "AUD-07-02",
             "type": "single_choice",
             "content": "下列各项中，不属于内部控制要素的是（　）。",
             "answer": "D",
@@ -435,7 +435,7 @@ def seed_questions(db: Session, code_to_id: dict[str, int]) -> None:
 
         # ===== 财务成本管理 =====
         {
-            "kp_code": "FCM-01-01",
+            "kp_code": "FCM-01-02",
             "type": "single_choice",
             "content": "某人现在存入银行10000元，年利率5%，复利计息，2年后的本利和为（　）元。（计算结果保留整数）",
             "answer": "C",
@@ -465,7 +465,7 @@ def seed_questions(db: Session, code_to_id: dict[str, int]) -> None:
             ],
         },
         {
-            "kp_code": "FCM-05-01",
+            "kp_code": "FCM-14-01",
             "type": "single_choice",
             "content": "某产品单价100元，单位变动成本60元，固定成本总额80000元。该产品的盈亏平衡点销售量为（　）件。",
             "answer": "A",

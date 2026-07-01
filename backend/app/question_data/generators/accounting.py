@@ -312,7 +312,7 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
                     all_opts2.append((fs, False)); seen2.add(fs)
             random.shuffle(all_opts)
             opts_data2 = [(labels_4[i], all_opts2[i][0], all_opts2[i][1]) for i in range(min(4, len(all_opts2)))]
-            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _ans = labels_4[next(i for i, o in enumerate(all_opts2) if o[1])]
             _add_question(db, kps["ACC-04-02"], "single_choice", content2, _ans,
                           f"第二年折旧=(原值-第一年折旧)×(2/年限)=({origin}-{year1_dep})×(2/{years})={year2_dep}万元。", 4, "mock", opts_data2)
             count += 1
@@ -407,7 +407,7 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
             random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
             _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-            _add_question(db, kps["ACC-05-01"], "single_choice", content, _ans,
+            _add_question(db, kps["ACC-03-01"], "single_choice", content, _ans,
                           f"坏账准备=应收账款余额×计提比例={balance}×{int(rate*100)}%={provision}元。", 3, "mock", opts_data)
             count += 1
 

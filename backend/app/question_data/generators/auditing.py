@@ -31,7 +31,7 @@ def gen_auditing(db: Session, kps: dict[str, int]) -> int:
     ]
     for content, is_correct, explanation in audit_judgments:
         result = _gen_judgment(content, is_correct, explanation, 2)
-        _add_question(db, kps["AUD-06-02"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
+        _add_question(db, kps["AUD-03-01"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
     # --- 2. 审计程序选择 ---
@@ -172,7 +172,7 @@ def gen_auditing_extra(db: Session, kps: dict[str, int]) -> int:
         opts2 = list(zip(labels, [ev_type] + wrong_types))
         content = f"下列审计证据中，可靠性为「{reliability}」的是（　）。"
         result = _gen_single_choice(content, "A", f"{reason}。", 3, opts2)
-        _add_question(db, kps["AUD-06-02"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
+        _add_question(db, kps["AUD-03-01"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
     # --- 函证对象组合 ---
@@ -288,7 +288,7 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
                 random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
                 _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-                _add_question(db, kps["AUD-06-02"], "single_choice", content, _ans,
+                _add_question(db, kps["AUD-04-01"], "single_choice", content, _ans,
                               f"属性抽样样本量受总体规模、可容忍偏差率和预期偏差率影响。计算得样本量约{n}个。", 5, "mock", opts_data)
                 count += 1
 
@@ -318,7 +318,7 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
             random.shuffle(all_opts)
             opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
             _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-            _add_question(db, kps["AUD-06-02"], "single_choice", content, _ans,
+            _add_question(db, kps["AUD-02-02"], "single_choice", content, _ans,
                           f"重要性水平=基准×比例={amt}×{bench_rate*100:.1f}%={materiality}万元。", 4, "mock", opts_data)
             count += 1
 

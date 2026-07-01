@@ -51,7 +51,7 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                 random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
                 _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-                _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
+                _add_question(db, kps["FCM-01-02"], "single_choice", content, _ans,
                               f"复利终值F=P×(1+i)^n={p}×(1+{r})^{n}={fv}元。",
                               3, "mock", opts_data)
                 count += 1
@@ -89,7 +89,7 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                 random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
                 _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-                _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
+                _add_question(db, kps["FCM-01-02"], "single_choice", content, _ans,
                               f"复利现值P=F/(1+i)^n={fv}/(1+{r})^{n}={pv}元。",
                               3, "mock", opts_data)
                 count += 1
@@ -124,7 +124,7 @@ def gen_finance(db: Session, kps: dict[str, int]) -> int:
                 random.shuffle(all_opts)
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
                 _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-                _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
+                _add_question(db, kps["FCM-01-02"], "single_choice", content, _ans,
                               f"年金终值F=A×[(1+i)^n-1]/i={pmt}×[(1+{r})^{n}-1]/{r}={fv_annuity}元。",
                               4, "mock", opts_data)
                 count += 1
@@ -334,9 +334,9 @@ def gen_finance_batch3(db: Session, kps: dict[str, int]) -> int:
                     fs = str(fake)
                     if fs not in seen2 and fake > 0:
                         all_opts2.append((fs, False)); seen2.add(fs)
-                random.shuffle(all_opts)
+                random.shuffle(all_opts2)
                 opts_data2 = [(labels_4[i], all_opts2[i][0], all_opts2[i][1]) for i in range(min(4, len(all_opts2)))]
-                _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+                _ans = labels_4[next(i for i, o in enumerate(all_opts2) if o[1])]
                 _add_question(db, kps["FCM-02-01"], "single_choice", content2, _ans,
                               f"速动比率=(流动资产-存货)/流动负债=({ca}-{inv})/{cl}={qr}。", 4, "mock", opts_data2)
                 count += 1

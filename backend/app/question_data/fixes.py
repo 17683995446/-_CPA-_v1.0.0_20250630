@@ -677,17 +677,10 @@ def _tag_exam_info(db: Session) -> int:
         kp = q.knowledge_point
         kp_name = kp.name if kp else "综合知识点"
 
-        # 尝试从题干内容中提取更精确的考点
-        content = q.content or ""
-        specific_point = None
-        for keyword, point in kp_to_exam_point.items():
-            if keyword in content:
-                specific_point = point
-                break
-
-        # 优先使用内容匹配的考点，其次使用知识点名称映射
-        # 始终重新计算，修正之前可能错误设置的 exam_point
-        q.exam_point = specific_point or kp_to_exam_point.get(kp_name, kp_name)
+        # 直接使用知识点名称映射考点
+        # 不再从题干内容中匹配关键词，因为通用词汇（如"所有者权益"、"所得税"、
+        # "增值税进项税额"）会出现在大量不相关题目中，导致75%以上的误匹配
+        q.exam_point = kp_to_exam_point.get(kp_name, kp_name)
 
         # 模拟题统一标记来源
         q.source = "mock"
