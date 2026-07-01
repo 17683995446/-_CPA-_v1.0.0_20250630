@@ -22,8 +22,10 @@ from app.db.session import get_db
 from app.engines.bkt import BKTEngine, MasteryState
 from app.engines.fsrs import FSRSEngine
 from app.engines.gamification import GamificationEngine
-from app.models import User
+from app.models import KnowledgePoint, User, UserMastery
 from app.schemas.mastery import (
+    BatchMasteryResponse,
+    MasteryItemResponse,
     MasteryResponse,
     SubmitAnswerRequest,
     SubmitAnswerResponse,
@@ -40,6 +42,79 @@ def _get_answer_service(
 ) -> AnswerService:
     """构造 AnswerService 实例。"""
     return AnswerService(bkt_engine, fsrs_engine, game_engine)
+
+
+@router.get("/{user_id}/all", response_model=BatchMasteryResponse)
+def get_all_mastery(
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_user_or_404),
+    bkt_engine: BKTEngine = Depends(get_bkt_engine),
+):
+    """
+    批量获取用户所有知识点的掌握度。
+
+    一次请求返回全部知识点的 BKT 掌握度，避免前端 N+1 调用。
+    未答题的知识点返回 BKT 默认值（p_known=0.1, level=unknown）。
+    供知识可视化模块渲染掌握度热力图。
+    """
+    all_kps = db.query(KnowledgePoint).all()
+    mastery_map = {
+        m.knowledge_point_id: m
+        for m in db.query(UserMastery).filter(UserMastery.user_id == user_id).all()
+    }
+
+    items: list[MasteryItemResponse] = []
+    answered_count = 0
+    for kp in all_kps:
+        mastery = mastery_map.get(kp.id)
+        if mastery is not None:
+            state = MasteryState.from_orm(mastery)
+            items.append(
+                MasteryItemResponse(
+                    knowledge_point_id=kp.id,
+                    knowledge_point_code=kp.code,
+                    knowledge_point_name=kp.name,
+                    subject=kp.subject,
+                    chapter=kp.chapter,
+                    difficulty=kp.difficulty,
+                    p_known=state.p_known,
+                    mastery_level=bkt_engine.mastery_level(state),
+                    total_answers=mastery.total_answers,
+                    correct_answers=mastery.correct_answers,
+                    recommended_difficulty=bkt_engine.recommend_difficulty(state),
+                )
+            )
+            answered_count += 1
+        else:
+            default_state = MasteryState(
+                p_known=bkt_engine.defaults.p_known,
+                p_transit=bkt_engine.defaults.p_transit,
+                p_guess=bkt_engine.defaults.p_guess,
+                p_slip=bkt_engine.defaults.p_slip,
+            )
+            items.append(
+                MasteryItemResponse(
+                    knowledge_point_id=kp.id,
+                    knowledge_point_code=kp.code,
+                    knowledge_point_name=kp.name,
+                    subject=kp.subject,
+                    chapter=kp.chapter,
+                    difficulty=kp.difficulty,
+                    p_known=default_state.p_known,
+                    mastery_level=bkt_engine.mastery_level(default_state),
+                    total_answers=0,
+                    correct_answers=0,
+                    recommended_difficulty=bkt_engine.recommend_difficulty(default_state),
+                )
+            )
+
+    return BatchMasteryResponse(
+        user_id=user_id,
+        total_kps=len(items),
+        answered_kps=answered_count,
+        items=items,
+    )
 
 
 @router.get("/{user_id}/{kp_id}", response_model=MasteryResponse)

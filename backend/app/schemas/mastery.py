@@ -25,6 +25,38 @@ class MasteryResponse(BaseModel):
     recommended_difficulty: int
 
 
+class MasteryItemResponse(BaseModel):
+    """单个知识点的掌握度摘要（批量查询用）。
+
+    包含知识点基本信息 + BKT 掌握度，供前端知识可视化直接渲染。
+    """
+
+    knowledge_point_id: int
+    knowledge_point_code: str
+    knowledge_point_name: str
+    subject: str
+    chapter: str
+    difficulty: int
+    p_known: float
+    mastery_level: str
+    total_answers: int
+    correct_answers: int
+    recommended_difficulty: int
+
+
+class BatchMasteryResponse(BaseModel):
+    """用户所有知识点掌握度批量响应。
+
+    一次请求返回全部知识点的掌握度，避免前端 N+1 调用。
+    未答题的知识点返回 BKT 默认值（p_known=0.1, level=unknown）。
+    """
+
+    user_id: int
+    total_kps: int
+    answered_kps: int
+    items: list[MasteryItemResponse]
+
+
 class SubmitAnswerRequest(BaseModel):
     """提交答题请求（集成 BKT + FSRS + 游戏化）。"""
 

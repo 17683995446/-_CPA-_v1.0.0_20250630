@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1561,6 +1562,244 @@
             font-size: 28px;
             opacity: 0.5;
         }
+
+        /* ===== 知识可视化页面 ===== */
+        .viz-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding: 14px 18px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        .viz-toolbar .vt-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-light);
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .viz-toolbar .vt-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+            margin: 0 6px;
+        }
+        .viz-layout-btn {
+            padding: 7px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--card-bg);
+            color: var(--text-light);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+        .viz-layout-btn:hover { border-color: var(--primary); color: var(--text); }
+        .viz-layout-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* 图谱容器 */
+        .viz-graph-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+        .viz-graph-container .viz-canvas {
+            width: 100%;
+            height: 600px;
+        }
+        @media (max-width: 768px) {
+            .viz-graph-container .viz-canvas { height: 420px; }
+        }
+
+        /* 图谱图例 */
+        .viz-legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 12px 18px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-soft);
+        }
+        .viz-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        .viz-legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .viz-legend-ring {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 3px solid;
+            flex-shrink: 0;
+        }
+
+        /* 知识点详情面板 */
+        .viz-detail-panel {
+            position: fixed;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%) translateX(420px);
+            width: 380px;
+            max-height: 70vh;
+            overflow-y: auto;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+            padding: 24px;
+            z-index: 500;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .viz-detail-panel.show {
+            transform: translateY(-50%) translateX(0);
+        }
+        .viz-detail-panel .vdp-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 22px;
+            cursor: pointer;
+            color: var(--text-light);
+            line-height: 1;
+            border: none;
+            background: none;
+        }
+        .viz-detail-panel .vdp-subj-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .viz-detail-panel .vdp-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 6px;
+            padding-right: 24px;
+        }
+        .viz-detail-panel .vdp-code {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 14px;
+        }
+        .viz-detail-panel .vdp-mastery-bar {
+            margin: 16px 0;
+        }
+        .viz-detail-panel .vdp-mastery-bar .vmb-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+        .viz-detail-panel .vdp-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .viz-detail-panel .vdp-stat {
+            text-align: center;
+            padding: 12px 8px;
+            background: var(--bg-soft);
+            border-radius: 10px;
+        }
+        .viz-detail-panel .vdp-stat .vs-num {
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--primary);
+        }
+        .viz-detail-panel .vdp-stat .vs-label {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+        .viz-detail-panel .vdp-prereq {
+            margin-top: 16px;
+        }
+        .viz-detail-panel .vdp-prereq-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .viz-detail-panel .vdp-prereq-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-soft);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .viz-detail-panel .vdp-prereq-item:hover {
+            background: rgba(99,102,241,0.08);
+        }
+        .viz-detail-panel .vdp-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 可视化页面统计卡片行 */
+        .viz-stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 768px) {
+            .viz-stats-row { grid-template-columns: 1fr 1fr; }
+            .viz-detail-panel { width: calc(100vw - 32px); right: 16px; }
+        }
+        .viz-stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .viz-stat-card .vsc-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+        .viz-stat-card .vsc-num {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--text);
+        }
+        .viz-stat-card .vsc-label {
+            font-size: 12px;
+            color: var(--text-light);
+        }
     </style>
 </head>
 <body>
@@ -1663,6 +1902,9 @@
             </div>
             <div class="nav-item" onclick="showPage('knowledge')" data-page="knowledge">
                 <span class="icon">🧠</span> 知识图谱
+            </div>
+            <div class="nav-item" onclick="showPage('viz')" data-page="viz">
+                <span class="icon">🌐</span> 知识可视化
             </div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 18px 8px;margin-top:12px">练习</div>
             <div class="nav-item" onclick="showPage('journal')" data-page="journal">
@@ -1882,6 +2124,66 @@
                         <div class="chart-container"><canvas id="chart-kp-difficulty"></canvas></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 知识可视化 -->
+            <div class="page" id="page-viz">
+                <h2 class="page-title">知识可视化</h2>
+                <div class="viz-stats-row" id="viz-stats-row">
+                    <div class="viz-stat-card">
+                        <span class="vsc-icon">📐</span>
+                        <div><div class="vsc-num" id="viz-total-kps">0</div><div class="vsc-label">知识点总数</div></div>
+                    </div>
+                    <div class="viz-stat-card">
+                        <span class="vsc-icon">🔗</span>
+                        <div><div class="vsc-num" id="viz-total-edges">0</div><div class="vsc-label">依赖关系</div></div>
+                    </div>
+                    <div class="viz-stat-card">
+                        <span class="vsc-icon">✅</span>
+                        <div><div class="vsc-num" id="viz-answered-kps">0</div><div class="vsc-label">已答题知识点</div></div>
+                    </div>
+                    <div class="viz-stat-card">
+                        <span class="vsc-icon">📊</span>
+                        <div><div class="vsc-num" id="viz-avg-mastery">0%</div><div class="vsc-label">平均掌握度</div></div>
+                    </div>
+                </div>
+                <div class="viz-toolbar">
+                    <span class="vt-label">科目</span>
+                    <button class="viz-layout-btn active" onclick="vizFilterSubject('all', this)">全部</button>
+                    <button class="viz-layout-btn" onclick="vizFilterSubject('会计', this)">会计</button>
+                    <button class="viz-layout-btn" onclick="vizFilterSubject('审计', this)">审计</button>
+                    <button class="viz-layout-btn" onclick="vizFilterSubject('财务成本管理', this)">财管</button>
+                    <button class="viz-layout-btn" onclick="vizFilterSubject('公司战略与风险管理', this)">战略</button>
+                    <button class="viz-layout-btn" onclick="vizFilterSubject('经济法', this)">经济法</button>
+                    <button class="viz-layout-btn" onclick="vizFilterSubject('税法', this)">税法</button>
+                    <div class="vt-divider"></div>
+                    <span class="vt-label">布局</span>
+                    <button class="viz-layout-btn active" onclick="vizSetLayout('force', this)">力导向</button>
+                    <button class="viz-layout-btn" onclick="vizSetLayout('circular', this)">环形</button>
+                    <button class="viz-layout-btn" onclick="vizSetLayout('tree', this)">树形</button>
+                </div>
+                <div class="viz-graph-container">
+                    <div class="viz-canvas" id="viz-canvas"></div>
+                    <div class="viz-legend">
+                        <div class="viz-legend-item"><span class="viz-legend-dot" style="background:#6366f1"></span>会计</div>
+                        <div class="viz-legend-item"><span class="viz-legend-dot" style="background:#ec4899"></span>审计</div>
+                        <div class="viz-legend-item"><span class="viz-legend-dot" style="background:#10b981"></span>财管</div>
+                        <div class="viz-legend-item"><span class="viz-legend-dot" style="background:#f59e0b"></span>战略</div>
+                        <div class="viz-legend-item"><span class="viz-legend-dot" style="background:#3b82f6"></span>经济法</div>
+                        <div class="viz-legend-item"><span class="viz-legend-dot" style="background:#8b5cf6"></span>税法</div>
+                        <div class="vt-divider"></div>
+                        <div class="viz-legend-item"><span class="viz-legend-ring" style="border-color:#94a3b8"></span>未学习</div>
+                        <div class="viz-legend-item"><span class="viz-legend-ring" style="border-color:#f59e0b"></span>学习中</div>
+                        <div class="viz-legend-item"><span class="viz-legend-ring" style="border-color:#3b82f6"></span>较熟练</div>
+                        <div class="viz-legend-item"><span class="viz-legend-ring" style="border-color:#10b981"></span>已掌握</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 知识点详情面板 -->
+            <div class="viz-detail-panel" id="viz-detail-panel">
+                <button class="vdp-close" onclick="closeVizDetail()">×</button>
+                <div id="viz-detail-content"></div>
             </div>
 
             <!-- 分录练习 -->
@@ -2112,6 +2414,7 @@ function showPage(page) {
     if (page === 'study') loadStudyPage();
     if (page === 'review') loadReviewPage();
     if (page === 'knowledge') loadKnowledgePage();
+    if (page === 'viz') loadKnowledgeVizPage();
     if (page === 'journal') loadJournalPage();
     if (page === 'achievements') loadAchievementsPage();
 }
@@ -3126,6 +3429,353 @@ async function autoLogin() {
         // 静默失败，留在登录页
         localStorage.removeItem('cpa_user_id');
         localStorage.removeItem('cpa_username');
+    }
+}
+
+// ===== 知识可视化页面 =====
+let _vizChart = null;
+let _vizGraphData = null;      // {nodes, edges} from API
+let _vizMasteryMap = null;     // {kp_id: masteryItem}
+let _vizKpMap = null;          // {kp_id: node}
+let _vizSubjectFilter = 'all';
+let _vizLayout = 'force';
+const _vizSubjectColors = {
+    '会计': '#6366f1',
+    '审计': '#ec4899',
+    '财务成本管理': '#10b981',
+    '公司战略与风险管理': '#f59e0b',
+    '经济法': '#3b82f6',
+    '税法': '#8b5cf6',
+};
+const _vizMasteryColors = {
+    'unknown': '#94a3b8',
+    'learning': '#f59e0b',
+    'mastering': '#3b82f6',
+    'mastered': '#10b981',
+};
+
+function vizFilterSubject(subject, btn) {
+    _vizSubjectFilter = subject;
+    document.querySelectorAll('.viz-toolbar .viz-layout-btn').forEach(b => {
+        if (b.textContent === '全部' || b.textContent === '会计' || b.textContent === '审计' ||
+            b.textContent === '财管' || b.textContent === '战略' || b.textContent === '经济法' || b.textContent === '税法') {
+            b.classList.remove('active');
+        }
+    });
+    if (btn) btn.classList.add('active');
+    renderVizGraph();
+}
+
+function vizSetLayout(layout, btn) {
+    _vizLayout = layout;
+    document.querySelectorAll('.viz-toolbar .viz-layout-btn').forEach(b => {
+        if (b.textContent === '力导向' || b.textContent === '环形' || b.textContent === '树形') {
+            b.classList.remove('active');
+        }
+    });
+    if (btn) btn.classList.add('active');
+    renderVizGraph();
+}
+
+function closeVizDetail() {
+    document.getElementById('viz-detail-panel').classList.remove('show');
+}
+
+async function loadKnowledgeVizPage() {
+    if (!currentUser) return;
+    try {
+        // 并发获取图谱数据和掌握度数据
+        const [graphData, masteryData] = await Promise.all([
+            api('GET', '/api/knowledge/graph'),
+            api('GET', `/api/mastery/${currentUser.id}/all`),
+        ]);
+
+        _vizGraphData = graphData;
+        _vizMasteryMap = {};
+        masteryData.items.forEach(item => {
+            _vizMasteryMap[item.knowledge_point_id] = item;
+        });
+        _vizKpMap = {};
+        graphData.nodes.forEach(n => { _vizKpMap[n.id] = n; });
+
+        // 更新统计卡片
+        document.getElementById('viz-total-kps').textContent = graphData.nodes.length;
+        document.getElementById('viz-total-edges').textContent = graphData.edges.length;
+        document.getElementById('viz-answered-kps').textContent = masteryData.answered_kps;
+        const avgMastery = masteryData.items.length > 0
+            ? Math.round(masteryData.items.reduce((s, i) => s + i.p_known, 0) / masteryData.items.length * 100)
+            : 0;
+        document.getElementById('viz-avg-mastery').textContent = avgMastery + '%';
+
+        renderVizGraph();
+    } catch (e) {
+        showToast('加载知识可视化失败: ' + e.message, 'error');
+    }
+}
+
+function renderVizGraph() {
+    if (!_vizGraphData) return;
+
+    const chartDom = document.getElementById('viz-canvas');
+    if (_vizChart) { _vizChart.dispose(); _vizChart = null; }
+    _vizChart = echarts.init(chartDom);
+
+    // 筛选节点和边
+    let nodes = _vizGraphData.nodes;
+    let edges = _vizGraphData.edges;
+    if (_vizSubjectFilter !== 'all') {
+        const filteredIds = new Set(nodes.filter(n => n.subject === _vizSubjectFilter).map(n => n.id));
+        nodes = nodes.filter(n => filteredIds.has(n.id));
+        edges = edges.filter(e => filteredIds.has(e.source) && filteredIds.has(e.target));
+    }
+
+    // 构造 ECharts 节点
+    const echartsNodes = nodes.map(n => {
+        const mastery = _vizMasteryMap[n.id] || {};
+        const pKnown = mastery.p_known ?? 0.1;
+        const level = mastery.mastery_level || 'unknown';
+        const subjColor = _vizSubjectColors[n.subject] || '#64748b';
+        const masteryColor = _vizMasteryColors[level] || '#94a3b8';
+        const symbolSize = 25 + (n.difficulty || 3) * 6; // 难度越大节点越大
+
+        return {
+            id: String(n.id),
+            name: n.label || n.name || n.code,
+            symbolSize: symbolSize,
+            category: n.subject,
+            itemStyle: {
+                color: subjColor,
+                borderColor: masteryColor,
+                borderWidth: 3,
+                shadowBlur: 10,
+                shadowColor: masteryColor + '66',
+            },
+            label: {
+                show: true,
+                position: 'bottom',
+                fontSize: 11,
+                color: '#475569',
+                formatter: () => {
+                    const name = n.name || n.label || n.code;
+                    return name.length > 8 ? name.slice(0, 7) + '…' : name;
+                },
+            },
+            _kpData: n,
+            _mastery: mastery,
+            _pKnown: pKnown,
+            _level: level,
+        };
+    });
+
+    // 构造 ECharts 边
+    const echartsEdges = edges.map(e => ({
+        source: String(e.source),
+        target: String(e.target),
+        lineStyle: {
+            color: '#cbd5e1',
+            width: 1.5,
+            curveness: 0.15,
+            opacity: 0.6,
+        },
+        symbol: ['none', 'arrow'],
+        symbolSize: 8,
+    }));
+
+    // 布局配置
+    let layoutConfig;
+    if (_vizLayout === 'force') {
+        layoutConfig = {
+            type: 'force',
+            repulsion: 200,
+            edgeLength: [80, 160],
+            gravity: 0.08,
+            friction: 0.6,
+            layoutAnimation: true,
+        };
+    } else if (_vizLayout === 'circular') {
+        layoutConfig = { type: 'circular' };
+    } else {
+        layoutConfig = {
+            type: 'tree',
+            orient: 'LR',
+            layoutAnimation: true,
+        };
+    }
+
+    // 科目分类
+    const categories = Object.keys(_vizSubjectColors).map(s => ({ name: s }));
+
+    const option = {
+        tooltip: {
+            formatter: function(params) {
+                if (params.dataType === 'node') {
+                    const d = params.data._kpData;
+                    const m = params.data._mastery;
+                    const pKnown = params.data._pKnown;
+                    const level = params.data._level;
+                    const levelLabel = { unknown: '未学习', learning: '学习中', mastering: '较熟练', mastered: '已掌握' };
+                    return `<div style="font-weight:700;font-size:13px;margin-bottom:4px">${d.name || d.label}</div>
+                        <div style="font-size:12px;color:#64748b">${d.code} | ${d.subject} | ${d.chapter || ''}</div>
+                        <div style="font-size:12px;margin-top:4px">难度: ${'★'.repeat(d.difficulty||3)}${'☆'.repeat(5-(d.difficulty||3))}</div>
+                        <div style="font-size:12px;color:${_vizMasteryColors[level]}">掌握度: ${Math.round(pKnown*100)}% (${levelLabel[level]})</div>
+                        ${m.total_answers ? `<div style="font-size:12px">答题: ${m.correct_answers}/${m.total_answers}</div>` : ''}`;
+                } else if (params.dataType === 'edge') {
+                    return '前置依赖';
+                }
+            },
+        },
+        series: [{
+            type: 'graph',
+            layout: layoutConfig,
+            data: echartsNodes,
+            links: echartsEdges,
+            categories: categories,
+            roam: true,
+            draggable: true,
+            label: { show: true },
+            lineStyle: { color: 'source' },
+            emphasis: {
+                focus: 'adjacency',
+                lineStyle: { width: 3, opacity: 1, color: '#6366f1' },
+                itemStyle: { shadowBlur: 20 },
+            },
+            force: _vizLayout === 'force' ? {
+                repulsion: 200,
+                edgeLength: [80, 160],
+                gravity: 0.08,
+            } : undefined,
+        }],
+    };
+
+    // 树形布局需要不同的 series 配置
+    if (_vizLayout === 'tree') {
+        option.series[0].layout = 'none';
+        option.series[0].force = undefined;
+        // 树形布局需要 edge 的 source/target 为索引而非 id
+        const idToIdx = {};
+        echartsNodes.forEach((n, i) => { idToIdx[n.id] = i; });
+        option.series[0].links = echartsEdges.map(e => ({
+            ...e,
+            source: idToIdx[e.source] ?? e.source,
+            target: idToIdx[e.target] ?? e.target,
+        }));
+    }
+
+    _vizChart.setOption(option);
+
+    // 响应式
+    if (!_vizChart._resizeBound) {
+        window.addEventListener('resize', () => { if (_vizChart) _vizChart.resize(); });
+        _vizChart._resizeBound = true;
+    }
+
+    // 点击节点：弹出详情面板
+    _vizChart.off('click');
+    _vizChart.on('click', async function(params) {
+        if (params.dataType === 'node') {
+            const kpData = params.data._kpData;
+            const mastery = params.data._mastery;
+            await showVizDetail(kpData, mastery);
+        }
+    });
+
+    // 双击节点：跳转学习页
+    _vizChart.off('dblclick');
+    _vizChart.on('dblclick', function(params) {
+        if (params.dataType === 'node') {
+            const kp = params.data._kpData;
+            closeVizDetail();
+            showPage('study');
+            setTimeout(() => startStudy(kp.id, kp.code, kp.subject), 300);
+        }
+    });
+}
+
+async function showVizDetail(kpData, mastery) {
+    const panel = document.getElementById('viz-detail-panel');
+    const content = document.getElementById('viz-detail-content');
+    const subjColor = _vizSubjectColors[kpData.subject] || '#64748b';
+    const pKnown = mastery.p_known ?? 0.1;
+    const level = mastery.mastery_level || 'unknown';
+    const levelLabel = { unknown: '未学习', learning: '学习中', mastering: '较熟练', mastered: '已掌握' };
+    const masteryColor = _vizMasteryColors[level];
+    const stars = '★'.repeat(kpData.difficulty || 3) + '☆'.repeat(5 - (kpData.difficulty || 3));
+    const accuracy = mastery.total_answers > 0
+        ? Math.round(mastery.correct_answers / mastery.total_answers * 100)
+        : 0;
+
+    // 获取前置依赖
+    let prereqHtml = '';
+    try {
+        const pathData = await api('GET', `/api/knowledge/graph/learning-path/${kpData.id}`);
+        if (pathData.path && pathData.path.length > 1) {
+            prereqHtml = `
+                <div class="vdp-prereq">
+                    <div class="vdp-prereq-title">📚 学习路径（${pathData.path.length - 1} 个前置知识点）</div>
+                    ${pathData.path.slice(0, -1).map(p => `
+                        <div class="vdp-prereq-item" onclick="vizJumpToKp(${p.id})">
+                            <span style="font-size:11px;color:${_vizSubjectColors[p.subject]||'#64748b'};font-weight:700;width:60px;flex-shrink:0">${p.code}</span>
+                            <span>${p.name}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    } catch {}
+
+    content.innerHTML = `
+        <span class="vdp-subj-tag" style="color:${subjColor};background:${subjColor}22">${kpData.subject}</span>
+        <div class="vdp-title">${kpData.name || kpData.label}</div>
+        <div class="vdp-code">${kpData.code} | ${kpData.chapter || ''} | 难度 ${stars}</div>
+
+        <div class="vdp-mastery-bar">
+            <div class="vmb-label">
+                <span>掌握度</span>
+                <span style="color:${masteryColor}">${Math.round(pKnown * 100)}% · ${levelLabel[level]}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pKnown * 100}%;background:${masteryColor}"></div></div>
+        </div>
+
+        <div class="vdp-stats">
+            <div class="vdp-stat">
+                <div class="vs-num">${mastery.total_answers || 0}</div>
+                <div class="vs-label">累计答题</div>
+            </div>
+            <div class="vdp-stat">
+                <div class="vs-num">${accuracy}%</div>
+                <div class="vs-label">正确率</div>
+            </div>
+        </div>
+
+        ${prereqHtml}
+
+        <div class="vdp-actions">
+            <button class="btn btn-primary" style="width:auto;padding:10px 20px" onclick="vizStartStudy(${kpData.id}, '${kpData.code}', '${kpData.subject}')">📚 开始学习</button>
+            <button class="btn btn-secondary" style="width:auto;padding:10px 20px" onclick="closeVizDetail()">关闭</button>
+        </div>
+    `;
+
+    panel.classList.add('show');
+}
+
+function vizStartStudy(kpId, kpCode, kpSubject) {
+    closeVizDetail();
+    showPage('study');
+    setTimeout(() => startStudy(kpId, kpCode, kpSubject), 300);
+}
+
+async function vizJumpToKp(kpId) {
+    const kp = _vizKpMap[kpId];
+    if (!kp) return;
+    const mastery = _vizMasteryMap[kpId] || {};
+    await showVizDetail(kp, mastery);
+    // 高亮对应节点
+    if (_vizChart) {
+        _vizChart.dispatchAction({
+            type: 'highlight',
+            seriesIndex: 0,
+            name: String(kpId),
+        });
     }
 }
 
