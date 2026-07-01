@@ -460,7 +460,7 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
 
     # --- 3. 企业所得税应纳税额（更多组合） ---
     incomes = [20, 30, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000, 20000, 25000]
-    rates_cit = [(0.25, "25%"), (0.20, "20%"), (0.15, "15%"), (0.10, "10%（预提所得税率）")]
+    rates_cit = [(0.25, "25%"), (0.20, "20%（小型微利企业）"), (0.15, "15%"), (0.10, "10%（预提所得税率）")]
     for income in incomes:
         for rate_val, rate_label in rates_cit:
             if rate_val == 0.10:
@@ -470,6 +470,16 @@ def gen_tax_batch3(db: Session, kps: dict[str, int]) -> int:
                 wrongs = [str(round(income * 0.25, 2)), str(round(income * 0.05, 2)),
                           str(round(income * 0.15, 2))]
                 expl = f"非居民企业取得来源于中国境内的股息红利，未在中国境内设立机构场所的，按收入全额适用10%预提所得税率。应纳预提所得税={income}×10%={tax}万元。"
+            elif rate_val == 0.20:
+                # 小型微利企业仅适用于年应纳税所得额不超过300万元
+                if income > 300:
+                    continue
+                # 2023-2027年政策：应纳税所得额减按25%计入，按20%税率缴纳，实际有效税率5%
+                tax = round(income * 0.25 * 0.20, 2)
+                content = f"某小型微利企业应纳税所得额{income}万元，适用税率{rate_label}。应纳企业所得税为（　）万元。"
+                wrongs = [str(round(income * 0.20, 2)), str(round(income * 0.25, 2)),
+                          str(round(income * 0.10, 2))]
+                expl = f"小型微利企业应纳税额=应纳税所得额×25%×20%={income}×25%×20%={tax}万元（2023-2027年政策，实际有效税率5%）。"
             else:
                 tax = round(income * rate_val, 2)
                 content = f"某企业应纳税所得额{income}万元，适用企业所得税税率{rate_label}。应纳企业所得税为（　）万元。"

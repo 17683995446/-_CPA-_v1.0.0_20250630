@@ -129,11 +129,16 @@ def gen_strategy(db: Session, kps: dict[str, int]) -> int:
     ]
     for scenario, correct_type, detail in strategy_scenarios:
         wrong_types = [s[0] for s in strategy_types if s[0] != correct_type]
-        opts = list(zip(labels, [correct_type] + wrong_types + [wrong_types[0] + "（其他）"]))
-        # 确保4个不同选项
-        opts_list = [(labels[i], opts[i][1], i == 0) for i in range(min(4, len(opts)))]
-        while len(opts_list) < 4:
-            opts_list.append((labels[len(opts_list)], "不确定", False))
+        # 构建4个有意义的不同选项，避免重复
+        all_types = [s[0] for s in strategy_types]
+        other_type = [t for t in all_types if t != correct_type and t not in wrong_types[:2]]
+        fourth_opt = other_type[0] + "（其他）" if other_type else "稳定战略"
+        opts_list = [
+            (labels[0], correct_type, True),
+            (labels[1], wrong_types[0], False),
+            (labels[2], wrong_types[1], False),
+            (labels[3], fourth_opt, False),
+        ]
         random.shuffle(opts_list)
         _ans = next(o[0] for o in opts_list if o[2])
         content = f"{scenario}，这属于（　）。"
