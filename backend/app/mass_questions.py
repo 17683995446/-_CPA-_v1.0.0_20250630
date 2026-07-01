@@ -1798,9 +1798,9 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
                 fs = str(fake)
                 if fs not in seen2 and fake > 0:
                     all_opts2.append((fs, False)); seen2.add(fs)
-            random.shuffle(all_opts)
+            random.shuffle(all_opts2)
             opts_data2 = [(labels_4[i], all_opts2[i][0], all_opts2[i][1]) for i in range(min(4, len(all_opts2)))]
-            _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
+            _ans = labels_4[next(i for i, o in enumerate(all_opts2) if o[1])]
             _add_question(db, kps["ACC-04-02"], "single_choice", content2, _ans,
                           f"第二年折旧=(原值-第一年折旧)×(2/年限)=({origin}-{year1_dep})×(2/{years})={year2_dep}万元。", 4, "mock", opts_data2)
             count += 1
@@ -2288,7 +2288,7 @@ def gen_all_subjects_concepts(db: Session, kps: dict[str, int]) -> int:
         ("下列关于定金的说法正确的是", "定金具有担保性质", ["定金可以超过合同标的额30%", "定金不具有惩罚性", "收受定金方违约无需双倍返还"]),
         ("公司设立的条件不包括", "有良好的商业信誉", ["有符合规定的股东", "有符合规定的注册资本", "有公司住所"]),
         ("有限责任公司的股东人数上限为", "50人", ["30人", "100人", "200人"]),
-        ("股份有限公司的发起人人数为", "2人以上200人以下", ["1人以上", "5人以上", "10人以上"]),
+        ("股份有限公司的发起人人数为", "1人以上200人以下", ["1人以上", "5人以上", "10人以上"]),
         ("公司减资决议应当由", "股东会作出", ["董事会作出", "经理决定", "监事会作出"]),
         ("票据的特征不包括", "有因性", ["无因性", "要式性", "文义性"]),
         ("下列关于支票的说法正确的是", "支票的付款人为银行", ["支票可以远期", "支票可以远期签发", "支票没有金额限制"]),
