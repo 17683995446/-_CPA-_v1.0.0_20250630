@@ -63,10 +63,12 @@ async def lifespan(app: FastAPI):
         # 启动时自动修复已有题库的选项顺序和数据完整性（始终执行）
         from app.mass_questions import fix_existing_database
         fix_stats = fix_existing_database(db)
-        if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0:
+        dedup = fix_stats.get("dedup_fixed", 0)
+        if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0 or dedup > 0:
             print(f"题库修复: 打乱{fix_stats['shuffled']}题, "
                   f"判断题修复{fix_stats['judgment_fixed']}题, "
-                  f"答案修正{fix_stats['answer_fixed']}题")
+                  f"答案修正{fix_stats['answer_fixed']}题, "
+                  f"选项去重{dedup}题")
         else:
             print(f"题库选项已打乱: {fix_stats['shuffled']}题")
     finally:

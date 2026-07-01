@@ -108,9 +108,28 @@ def _shuffled_opts(
 
     返回 (answer_label, [(label, content, is_correct), ...])。
     确保正确答案不总是第一个，消除答案分布偏斜。
+    自动去重：跳过与正确答案或其他干扰项内容相同的项，不足时自动补充。
     """
     labels = ["A", "B", "C", "D", "E", "F"]
-    all_opts = [(correct, True)] + [(w, False) for w in wrongs]
+    # 去重：保持顺序，跳过重复内容
+    seen = {correct}
+    unique_wrongs = []
+    for w in wrongs:
+        if w not in seen:
+            seen.add(w)
+            unique_wrongs.append(w)
+    # 不足3个干扰项时，自动补充数值偏移项
+    _base = _extract_number(correct)
+    while len(unique_wrongs) < 3:
+        if _base is not None:
+            _offset = random.choice([1, -1, 2, -2, 10, -10, 100, -100, 0.5, -0.5])
+            _fake = str(round(_base + _offset, 2) if isinstance(_base, float) else _base + _offset)
+            if _fake not in seen:
+                seen.add(_fake)
+                unique_wrongs.append(_fake)
+        else:
+            break  # 文本型无法自动补充
+    all_opts = [(correct, True)] + [(w, False) for w in unique_wrongs]
     random.shuffle(all_opts)
     answer_label = None
     result = []
@@ -120,6 +139,13 @@ def _shuffled_opts(
             answer_label = label
         result.append((label, content, is_correct))
     return answer_label, result
+
+
+def _extract_number(s: str) -> float | None:
+    """尝试从字符串中提取数值，用于自动补充干扰项。"""
+    import re as _re
+    m = _re.search(r'-?\d+\.?\d*', s.replace(',', ''))
+    return float(m.group()) if m else None
 
 
 def _gen_judgment(
@@ -3255,6 +3281,44 @@ def fix_existing_database(db: Session) -> dict:
             if correct_label and q.answer != correct_label:
                 stats["answer_fixed"] += 1
                 q.answer = correct_label
+            # 恢复：如果没有 is_correct=True 的选项，根据 answer 字段重建
+            if correct_label is None:
+                stats["answer_fixed"] += 1
+                for o in opts:
+                    o.is_correct = (o.label == q.answer)
+                correct_label = q.answer
+
+            # 去重：检查是否有重复选项内容
+            contents = [o.content for o in opts]
+            if len(contents) != len(set(contents)):
+                stats["dedup_fixed"] = stats.get("dedup_fixed", 0) + 1
+                # 找到正确答案的内容
+                correct_opt = next((o for o in opts if o.is_correct), None)
+                correct_content = correct_opt.content if correct_opt else contents[0]
+                # 去重：对重复的错误选项，用数值偏移生成新内容
+                seen_contents = {correct_content}
+                for opt in opts:
+                    if not opt.is_correct:
+                        if opt.content in seen_contents:
+                            # 尝试用数值偏移修复
+                            base = _extract_number(opt.content)
+                            if base is not None:
+                                for _try in range(50):
+                                    offset = random.choice([1, -1, 2, -2, 10, -10, 100, -100, 0.5, -0.5])
+                                    new_val = str(round(base + offset, 2) if isinstance(base, float) else int(base + offset))
+                                    if new_val not in seen_contents:
+                                        opt.content = new_val
+                                        seen_contents.add(new_val)
+                                        break
+                            else:
+                                # 文本型：追加标记
+                                for suffix in ['（错误）', '（不正确）', '（非）']:
+                                    if opt.content + suffix not in seen_contents:
+                                        opt.content = opt.content + suffix
+                                        seen_contents.add(opt.content)
+                                        break
+                        else:
+                            seen_contents.add(opt.content)
 
             # 打乱选项顺序
             contents = [o.content for o in opts]
