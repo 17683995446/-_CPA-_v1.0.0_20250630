@@ -69,7 +69,7 @@ def gen_all_subjects_judgments(db: Session, kps: dict[str, int]) -> int:
         ("STR-03-01", "并购战略的动因包括获得规模经济和协同效应。", True, "协同效应是并购的重要动因。"),
         ("STR-01-01", "企业战略目标是企业在一定时期内要达到的预期成果。", True, "战略目标应具有挑战性和可实现性。"),
         # 以下为错误判断题，平衡答案分布
-        ("STR-02-03", "SWOT分析中的W代表机会(Opportunities)。", False, "W代表劣势(Weaknesses)，O才代表机会。"),
+        ("STR-02-03", "SWOT分析中的W代表机会(Opportunities)。", False, "W代表劣势，O才代表机会。"),
         ("STR-02-02", "波特五力模型包括政府干预力量。", False, "波特五力不包括政府干预，五力为：现有竞争者、潜在进入者、替代品、供应商议价、买方议价。"),
         ("STR-01-01", "BCG矩阵中明星类产品具有低增长高市场份额特征。", False, "明星类是高增长高市场份额，现金牛才是低增长高市场份额。"),
         ("STR-03-02", "成本领先战略要求企业提供独特的产品或服务。", False, "提供独特产品或服务是差异化战略，成本领先是做到成本最低。"),
@@ -186,7 +186,7 @@ def gen_all_subjects_concepts(db: Session, kps: dict[str, int]) -> int:
     for kp_code, question, answer, wrongs in acc_concepts:
         opts = list(zip(labels_4, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"会计基础知识。", 2, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为会计基本概念的直接考查。", 2, opts)
         _add_question(db, kps[kp_code], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -211,7 +211,7 @@ def gen_all_subjects_concepts(db: Session, kps: dict[str, int]) -> int:
     for kp_code, question, answer, wrongs in audit_concepts:
         opts = list(zip(labels_4, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"审计基础知识。", 2, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为审计基本概念的直接考查。", 2, opts)
         _add_question(db, kps[kp_code], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -236,7 +236,7 @@ def gen_all_subjects_concepts(db: Session, kps: dict[str, int]) -> int:
     for kp_code, question, answer, wrongs in strategy_concepts:
         opts = list(zip(labels_4, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"战略管理基础知识。", 2, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为战略管理基本概念的直接考查。", 2, opts)
         _add_question(db, kps[kp_code], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -261,7 +261,7 @@ def gen_all_subjects_concepts(db: Session, kps: dict[str, int]) -> int:
     for kp_code, question, answer, wrongs in law_concepts:
         opts = list(zip(labels_4, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"经济法基础知识。", 2, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为经济法基本概念的直接考查。", 2, opts)
         _add_question(db, kps[kp_code], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -286,7 +286,7 @@ def gen_all_subjects_concepts(db: Session, kps: dict[str, int]) -> int:
     for kp_code, question, answer, wrongs in tax_concepts:
         opts = list(zip(labels_4, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"税法基础知识。", 2, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为税法基本概念的直接考查。", 2, opts)
         _add_question(db, kps[kp_code], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -353,8 +353,8 @@ def gen_concepts_batch5(db: Session, kps: dict[str, int]) -> int:
         # 战略
         ("STR-05-01", "PEST分析中S代表", "社会环境", ["政治环境", "经济环境", "技术环境"]),
         ("STR-05-01", "PEST分析中T代表", "技术环境", ["政治环境", "经济环境", "社会环境"]),
-        ("STR-02-03", "SWOT分析中W代表", "劣势(Weaknesses)", ["优势", "机会", "威胁"]),
-        ("STR-02-03", "SWOT分析中T代表", "威胁(Threats)", ["优势", "劣势", "机会"]),
+        ("STR-02-03", "SWOT分析中W代表", "劣势", ["优势", "机会", "威胁"]),
+        ("STR-02-03", "SWOT分析中T代表", "威胁", ["优势", "劣势", "机会"]),
         ("STR-05-01", "下列属于密集型战略的是", "市场渗透战略", ["横向一体化", "相关多元化", "非相关多元化"]),
         ("STR-05-01", "下列属于一体化战略的是", "纵向一体化", ["市场渗透", "市场开发", "产品开发"]),
         ("STR-05-01", "下列不属于波特基本竞争战略的是", "集中差异化战略", ["成本领先战略", "差异化战略", "集中化战略"]),
@@ -387,7 +387,7 @@ def gen_concepts_batch5(db: Session, kps: dict[str, int]) -> int:
     for kp_code, question, answer, wrongs in all_concepts:
         opts = list(zip(labels_4, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"相关科目基础知识。", 2, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为相关科目基本概念的直接考查。", 2, opts)
         _add_question(db, kps[kp_code], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 

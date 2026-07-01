@@ -150,7 +150,7 @@ def gen_law_extra(db: Session, kps: dict[str, int]) -> int:
     for question, answer, wrongs in extra_numbers:
         opts = list(zip(labels, [answer] + wrongs))
         content = f"根据《公司法》，{question}（　）。"
-        result = _gen_single_choice(content, "A", f"《公司法》相关规定。", 3, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。根据《公司法》相关规定。", 3, opts)
         _add_question(db, kps["LAW-05-01"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -170,7 +170,7 @@ def gen_law_extra(db: Session, kps: dict[str, int]) -> int:
     for question, answer, wrongs in gov_choices:
         opts = list(zip(labels, [answer] + wrongs))
         content = f"{question}（　）。"
-        result = _gen_single_choice(content, "A", f"公司法相关规定。", 3, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。此为公司治理结构的相关规定。", 3, opts)
         _add_question(db, kps["LAW-05-02"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 
@@ -192,7 +192,7 @@ def gen_law_extra(db: Session, kps: dict[str, int]) -> int:
     for question, answer, wrongs in contract_choices:
         opts = list(zip(labels, [answer] + wrongs))
         content = f"根据《民法典》合同编，{question}（　）。"
-        result = _gen_single_choice(content, "A", f"《民法典》合同编相关规定。", 3, opts)
+        result = _gen_single_choice(content, "A", f"正确答案为{answer}。根据《民法典》合同编相关规定。", 3, opts)
         _add_question(db, kps["LAW-03-01"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])
         count += 1
 

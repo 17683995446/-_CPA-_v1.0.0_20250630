@@ -321,7 +321,7 @@ def gen_strategy_batch4(db: Session, kps: dict[str, int]) -> int:
     for scenario, force, reason in five_forces_scenarios:
         for _ in range(20):
             content = f"{scenario}，这属于波特五力模型中的（　）。"
-            wrongs = [f for f, _, _ in five_forces_scenarios if f != force][:3]
+            wrongs = [ff for _, ff, _ in five_forces_scenarios if ff != force][:3]
             opts = list(zip(labels_4, [force] + wrongs))
             result = _gen_single_choice(content, "A", f"{reason}。", 2, opts)
             _add_question(db, kps["STR-05-01"], result[0], result[1], result[2], result[3], result[4], "mock", result[5])

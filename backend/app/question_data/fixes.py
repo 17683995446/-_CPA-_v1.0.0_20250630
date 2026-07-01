@@ -314,7 +314,9 @@ def _balance_judgment_answers(db: Session) -> int:
     to_flip = [correct_qs[int(i * step)] for i in range(num_to_flip)]
 
     # 否定模式：按优先级匹配
+    # 注意：短关键词（如"由"）容易在复合词中误匹配（如"理由"→"理不由"），已移除
     negate_patterns = [
+        ("适用于", "不适用于"),  # 必须在"用于"之前
         ("是", "不是"),      # 但需避免"是否"中的"是"
         ("包括", "不包括"),
         ("属于", "不属于"),
@@ -323,13 +325,16 @@ def _balance_judgment_answers(db: Session) -> int:
         ("具有", "不具有"),
         ("能够", "不能够"),
         ("用于", "不用于"),
-        ("由", "不由"),
     ]
 
     count = 0
     for q in to_flip:
         content = q.content or ""
         explanation = q.explanation or ""
+
+        # 跳过含转折连词的复合句，避免否定后产生自相矛盾（如"可以撤回，但不能撤销"→"不可以撤回，但不能撤销"）
+        if any(conj in content for conj in ["但", "然而", "不过", "但是"]):
+            continue
 
         # 尝试否定陈述
         negated = False
@@ -354,13 +359,13 @@ def _balance_judgment_answers(db: Session) -> int:
                 break
 
         if not negated:
-            # 兜底：在句首添加"下列说法不正确："
-            q.content = f"下列说法不正确：{content}"
+            # 无法通过模式否定，跳过此题（不翻转），避免产生"下列说法不正确"双重否定混淆
+            continue
 
         # 翻转答案
         q.answer = "错误"
 
-        # 更新解析
+        # 更新解析：明确说明原命题正确但被否定后为错误
         q.explanation = f"该说法错误。{explanation}"
 
         # 更新选项的 is_correct

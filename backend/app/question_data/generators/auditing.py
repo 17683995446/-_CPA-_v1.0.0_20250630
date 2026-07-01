@@ -256,6 +256,8 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
     labels_4 = ["A", "B", "C", "D"]
 
     # --- 1. 审计抽样样本量计算 ---
+    # 使用属性抽样标准方法：5%信赖过度风险下，Poisson系数≈3.0
+    # n ≈ R / (可容忍偏差率 - 预期偏差率)，R=3.0（5%风险）
     populations = [1000, 2000, 5000, 10000, 20000, 50000]
     tolerable_rates = [0.02, 0.05, 0.10]
     expected_rates = [0.00, 0.01, 0.02]
@@ -264,10 +266,9 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
             for er in expected_rates:
                 if er >= tr:
                     continue
-                # 简化样本量公式 n = (pop * Z^2 * p * (1-p)) / (E^2 * (pop-1) + Z^2 * p * (1-p))
-                # 简化: n ≈ 1 / (tr - er)^2 (近似)
+                # 属性抽样样本量：5%信赖过度风险，Poisson系数3.0
                 import math
-                n = max(25, int(math.ceil(1.0 / (tr - er) ** 2 * 0.5)))
+                n = max(25, int(math.ceil(3.0 / (tr - er))))
                 if n > pop:
                     n = pop
                 content = f"审计师对总体{pop}个项目进行属性抽样，可容忍偏差率{tr*100:.0f}%，预期偏差率{er*100:.0f}%。最小样本量约为（　）个。"
@@ -289,7 +290,7 @@ def gen_auditing_batch4(db: Session, kps: dict[str, int]) -> int:
                 opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
                 _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
                 _add_question(db, kps["AUD-04-01"], "single_choice", content, _ans,
-                              f"属性抽样样本量受总体规模、可容忍偏差率和预期偏差率影响。计算得样本量约{n}个。", 5, "mock", opts_data)
+                              f"属性抽样样本量（5%信赖过度风险）：n ≈ 3.0 ÷（可容忍偏差率-预期偏差率）= 3.0÷({tr*100:.0f}%-{er*100:.0f}%)≈{n}个。", 5, "mock", opts_data)
                 count += 1
 
     # --- 2. 重要性水平计算 ---
