@@ -56,36 +56,47 @@ async def lifespan(app: FastAPI):
 
     db = SessionLocal()
     try:
-        if settings.AUTO_SEED_ON_STARTUP:
+        # ★ 版本检查：无论 AUTO_SEED_ON_STARTUP 是否开启，版本不匹配时必须重建
+        # 这确保 Docker 部署（AUTO_SEED_ON_STARTUP=false）也能自动更新题库
+        version_file = Path(__file__).parent / ".question_db_version"
+        stored_version = ""
+        if version_file.exists():
+            stored_version = version_file.read_text(encoding="utf-8").strip()
+
+        version_mismatch = stored_version != settings.QUESTION_DB_VERSION
+        q_count = db.query(Question).count()
+
+        if version_mismatch and q_count > 0:
+            logger.warning("题库版本不匹配 (存储=%s, 当前=%s)，重建题库...",
+                           stored_version, settings.QUESTION_DB_VERSION)
+            # 删除旧题目和知识点（保留用户学习记录）
+            from app.models import QuestionOption, KnowledgePoint
+            db.query(QuestionOption).delete()
+            db.query(Question).delete()
+            db.query(KnowledgePoint).delete()
+            db.commit()
+            q_count = 0
+            # 版本不匹配时强制重新生成种子数据
+            run_seed(db)
+        elif q_count == 0 and settings.AUTO_SEED_ON_STARTUP:
             run_seed(db)
 
-            # ★ 版本检查：题库版本号变更时自动重建，防止旧代码遗留的脏数据积累
-            version_file = Path(__file__).parent / ".question_db_version"
-            stored_version = ""
-            if version_file.exists():
-                stored_version = version_file.read_text(encoding="utf-8").strip()
+        if (version_mismatch or q_count < settings.QUESTION_BANK_THRESHOLD) and settings.AUTO_SEED_ON_STARTUP:
+            logger.info("题库仅 %d 题，开始批量生成...", q_count)
+            generate_mass_questions(db)
+            final_count = db.query(Question).count()
+            logger.info("题库生成完成，共 %d 题", final_count)
+        elif version_mismatch:
+            # AUTO_SEED_ON_STARTUP=false 但版本不匹配：也必须重建
+            logger.info("版本不匹配，强制重建题库...")
+            if q_count == 0:
+                run_seed(db)
+            generate_mass_questions(db)
+            final_count = db.query(Question).count()
+            logger.info("题库重建完成，共 %d 题", final_count)
 
-            version_mismatch = stored_version != settings.QUESTION_DB_VERSION
-            q_count = db.query(Question).count()
-
-            if version_mismatch and q_count > 0:
-                logger.warning("题库版本不匹配 (存储=%s, 当前=%s)，重建题库...",
-                               stored_version, settings.QUESTION_DB_VERSION)
-                # 删除旧题目（保留用户学习记录）
-                from app.models import QuestionOption
-                db.query(QuestionOption).delete()
-                db.query(Question).delete()
-                db.commit()
-                q_count = 0
-
-            if q_count < settings.QUESTION_BANK_THRESHOLD:
-                logger.info("题库仅 %d 题，开始批量生成...", q_count)
-                generate_mass_questions(db)
-                final_count = db.query(Question).count()
-                logger.info("题库生成完成，共 %d 题", final_count)
-
-            # 写入当前版本号
-            version_file.write_text(settings.QUESTION_DB_VERSION, encoding="utf-8")
+        # 写入当前版本号
+        version_file.write_text(settings.QUESTION_DB_VERSION, encoding="utf-8")
 
         # 启动时自动修复已有题库的选项顺序和数据完整性（始终执行）
         fix_stats = fix_existing_database(db)
