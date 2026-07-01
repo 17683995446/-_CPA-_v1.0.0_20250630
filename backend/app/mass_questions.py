@@ -3032,28 +3032,39 @@ def generate_mass_questions(db: Session) -> int:
 
 def _shuffle_all_options(db: Session) -> int:
     """
-    打乱单选题的选项内容顺序，确保正确答案不总是第一个。
+    打乱所有题目的选项顺序，确保正确答案不总是第一个。
 
     核心思路：保持 label 固定为 A/B/C/D（按 rowid 顺序），
     只交换 content 和 is_correct 字段，避免标签与行顺序错乱。
+
+    判断题特殊处理：随机交换 A/B 位置，确保约 50% 正确答案在 A、50% 在 B。
+    判断题（含真题）全部参与打乱，避免"答案总在第一个"的问题。
     """
     questions = db.query(Question).all()
     count = 0
 
     for q in questions:
-        # 跳过真题，保留原始选项顺序
-        if q.source == "past_exam":
-            continue
-
         opts = list(q.options)
         if len(opts) <= 1:
             continue
 
-        # 提取所有选项的内容和正确性标记
+        # 判断题：随机交换 A/B，同步更新 answer 字段
+        if q.question_type == "judgment":
+            if random.random() < 0.5:
+                # 交换两个选项的 content 和 is_correct
+                opts[0].content, opts[1].content = opts[1].content, opts[0].content
+                opts[0].is_correct, opts[1].is_correct = opts[1].is_correct, opts[0].is_correct
+            # answer 保持为"正确"或"错误"文本，前端通过 content 匹配
+            count += 1
+            continue
+
+        # 真题的非判断题：跳过，保留原始选项顺序
+        if q.source == "past_exam":
+            continue
+
+        # 单选/多选题：打乱内容和正确性标记（同步打乱，保持对应关系）
         contents = [o.content for o in opts]
         correct_flags = [o.is_correct for o in opts]
-
-        # 打乱内容和正确性标记（同步打乱，保持对应关系）
         paired = list(zip(contents, correct_flags))
         random.shuffle(paired)
 
@@ -3061,11 +3072,11 @@ def _shuffle_all_options(db: Session) -> int:
         new_answer = None
         for i, opt in enumerate(opts):
             opt.content, opt.is_correct = paired[i]
-            if opt.is_correct and q.question_type != "judgment":
+            if opt.is_correct:
                 new_answer = opt.label
 
         # 更新 answer 字段
-        if q.question_type != "judgment" and new_answer:
+        if new_answer:
             q.answer = new_answer
 
         count += 1

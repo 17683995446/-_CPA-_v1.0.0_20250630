@@ -2389,10 +2389,16 @@ async function submitAnswer() {
         return;
     }
     const opt = currentQuestion.options[selectedOption];
-    const isCorrect = opt.is_correct;
+    // 通过 answer 字段判断正确性，不依赖 is_correct（已从API响应中移除）
+    const isCorrect = currentQuestion.question_type === 'judgment'
+        ? (opt.content === currentQuestion.answer)
+        : (opt.label === currentQuestion.answer);
 
     currentQuestion.options.forEach((o, i) => {
-        if (o.is_correct) document.getElementById(`opt-${i}`).classList.add('correct');
+        const oCorrect = currentQuestion.question_type === 'judgment'
+            ? (o.content === currentQuestion.answer)
+            : (o.label === currentQuestion.answer);
+        if (oCorrect) document.getElementById(`opt-${i}`).classList.add('correct');
         else if (i === selectedOption) document.getElementById(`opt-${i}`).classList.add('wrong');
     });
 
