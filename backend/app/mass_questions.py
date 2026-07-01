@@ -118,8 +118,8 @@ def _shuffled_opts(
         if w not in seen:
             seen.add(w)
             unique_wrongs.append(w)
-    # 不足3个干扰项时，自动补充数值偏移项
-    _base = _extract_number(correct)
+    # 不足3个干扰项时，自动补充数值偏移项（仅当正确答案是纯数值时）
+    _base = _extract_number(correct) if _is_pure_numeric(correct) else None
     while len(unique_wrongs) < 3:
         if _base is not None:
             _offset = random.choice([1, -1, 2, -2, 10, -10, 100, -100, 0.5, -0.5])
@@ -146,6 +146,22 @@ def _extract_number(s: str) -> float | None:
     import re as _re
     m = _re.search(r'-?\d+\.?\d*', s.replace(',', ''))
     return float(m.group()) if m else None
+
+
+def _is_pure_numeric(s: str) -> bool:
+    """判断字符串是否为纯数值（不含中文/英文文字），用于决定是否生成数值型干扰项。
+
+    避免对"借：原材料 50万元；贷：银行存款 50万元"这类文本选项
+    生成纯数字干扰项（如"50.5"），导致选项类型混杂。
+    """
+    import re as _re
+    s = s.strip()
+    # 纯数值：可选正负号 + 数字 + 可选小数 + 可选百分号/万元等单位
+    # 但不允许包含中文字符或"借"/"贷"等分录关键词
+    if _re.search(r'[\u4e00-\u9fff]', s):
+        return False
+    # 纯数字或带百分号的数字
+    return bool(_re.match(r'^-?\d+\.?\d*%?$', s))
 
 
 def _gen_judgment(
@@ -1974,7 +1990,7 @@ def gen_finance_batch3(db: Session, kps: dict[str, int]) -> int:
                         random.shuffle(all_opts)
                         opts_data = [(labels_4[i], all_opts[i][0], all_opts[i][1]) for i in range(min(4, len(all_opts)))]
                         _ans = labels_4[next(i for i, o in enumerate(all_opts) if o[1])]
-                        _add_question(db, kps["FCM-01-03"], "single_choice", content, _ans,
+                        _add_question(db, kps["FCM-03-01"], "single_choice", content, _ans,
                                       f"WACC=权益比重×权益成本+债务比重×税后债务成本={w_eq:.4f}×{ce}+{w_debt:.4f}×{after_tax_cd:.4f}={wacc}。", 5, "mock", opts_data)
                         count += 1
                         if count >= 1000:  # 限制数量避免过多
@@ -3295,24 +3311,25 @@ def fix_existing_database(db: Session) -> dict:
                 # 找到正确答案的内容
                 correct_opt = next((o for o in opts if o.is_correct), None)
                 correct_content = correct_opt.content if correct_opt else contents[0]
-                # 去重：对重复的错误选项，用数值偏移生成新内容
+                # 去重：对重复的错误选项生成新内容
                 seen_contents = {correct_content}
                 for opt in opts:
                     if not opt.is_correct:
                         if opt.content in seen_contents:
-                            # 尝试用数值偏移修复
-                            base = _extract_number(opt.content)
-                            if base is not None:
-                                for _try in range(50):
-                                    offset = random.choice([1, -1, 2, -2, 10, -10, 100, -100, 0.5, -0.5])
-                                    new_val = str(round(base + offset, 2) if isinstance(base, float) else int(base + offset))
-                                    if new_val not in seen_contents:
-                                        opt.content = new_val
-                                        seen_contents.add(new_val)
-                                        break
+                            # 仅当选项内容为纯数值时才用数值偏移修复
+                            if _is_pure_numeric(opt.content):
+                                base = _extract_number(opt.content)
+                                if base is not None:
+                                    for _try in range(50):
+                                        offset = random.choice([1, -1, 2, -2, 10, -10, 100, -100, 0.5, -0.5])
+                                        new_val = str(round(base + offset, 2) if isinstance(base, float) else int(base + offset))
+                                        if new_val not in seen_contents:
+                                            opt.content = new_val
+                                            seen_contents.add(new_val)
+                                            break
                             else:
-                                # 文本型：追加标记
-                                for suffix in ['（错误）', '（不正确）', '（非）']:
+                                # 文本型：追加标记区分，不替换为纯数字
+                                for suffix in ['（错误）', '（不正确）', '（非）', '（ variant）']:
                                     if opt.content + suffix not in seen_contents:
                                         opt.content = opt.content + suffix
                                         seen_contents.add(opt.content)
@@ -3333,6 +3350,32 @@ def fix_existing_database(db: Session) -> dict:
                     new_answer = opt.label
             if new_answer:
                 q.answer = new_answer
+
+            # 最终去重检查：确保打乱后无重复选项
+            final_contents = [o.content for o in opts]
+            if len(final_contents) != len(set(final_contents)):
+                stats["dedup_fixed"] = stats.get("dedup_fixed", 0) + 1
+                seen = set()
+                for opt in opts:
+                    if opt.content in seen:
+                        if _is_pure_numeric(opt.content):
+                            base = _extract_number(opt.content)
+                            if base is not None:
+                                for _try in range(50):
+                                    offset = random.choice([1, -1, 2, -2, 10, -10, 100, -100, 0.5, -0.5])
+                                    new_val = str(round(base + offset, 2) if isinstance(base, float) else int(base + offset))
+                                    if new_val not in seen:
+                                        opt.content = new_val
+                                        seen.add(new_val)
+                                        break
+                        else:
+                            for suffix in ['（变体1）', '（变体2）', '（变体3）']:
+                                if opt.content + suffix not in seen:
+                                    opt.content = opt.content + suffix
+                                    seen.add(opt.content)
+                                    break
+                    else:
+                        seen.add(opt.content)
 
             stats["shuffled"] += 1
 
@@ -3507,6 +3550,8 @@ def _tag_exam_info(db: Session) -> int:
         "财务报表分析": "财务比率分析与杜邦分析",
         "财务预测": "财务预测与可持续增长率",
         "资本成本": "资本成本的计算与WACC",
+        "WACC": "资本成本的计算与WACC",
+        "加权平均资本成本": "资本成本的计算与WACC",
         "投资项目资本预算": "净现值NPV与投资决策",
         "债券价值评估": "债券估值模型与应用",
         "股票价值评估": "股票估值模型与应用",
@@ -3578,8 +3623,17 @@ def _tag_exam_info(db: Session) -> int:
         kp = q.knowledge_point
         kp_name = kp.name if kp else "综合知识点"
 
-        # 考点直接使用知识点名称的映射，确保考点与题目内容一致
-        q.exam_point = kp_to_exam_point.get(kp_name, kp_name)
+        # 尝试从题干内容中提取更精确的考点
+        content = q.content or ""
+        specific_point = None
+        for keyword, point in kp_to_exam_point.items():
+            if keyword in content:
+                specific_point = point
+                break
+
+        # 优先使用内容匹配的考点，其次使用知识点名称映射
+        # 始终重新计算，修正之前可能错误设置的 exam_point
+        q.exam_point = specific_point or kp_to_exam_point.get(kp_name, kp_name)
 
         # 模拟题统一标记来源
         q.source = "mock"

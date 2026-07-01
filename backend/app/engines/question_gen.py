@@ -237,10 +237,16 @@ class QuestionGenerator:
             # 无模板时，简单调整选项顺序
             shuffled_options = original.options.copy()
             rng.shuffle(shuffled_options)
+            # 重新分配标签，确保 label 与位置一致
+            for i, opt in enumerate(shuffled_options):
+                opt.label = chr(65 + i)  # A, B, C, D...
+            # 重新计算 answer 为正确选项的新标签
+            correct_opt = next((o for o in shuffled_options if o.is_correct), None)
+            new_answer = correct_opt.label if correct_opt else original.answer
             return GeneratedQuestion(
                 question_type=original.question_type,
                 content=original.content,
-                answer=original.answer,
+                answer=new_answer,
                 explanation=original.explanation,
                 difficulty=original.difficulty,
                 options=shuffled_options,

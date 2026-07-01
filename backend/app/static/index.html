@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CPA 智学 - 注册会计师智能学习平台</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -4143,19 +4144,35 @@ function renderMmView(data, view) {
         related:      { color: '#f59e0b', size: 36, label: '关联知识' },
     };
 
-    let option;
-    switch (view) {
-        case 'concept':  option = buildConceptMapOption(data, roleConfig, subjColor); break;
-        case 'causal':   option = buildCausalDiagramOption(data, roleConfig, subjColor); break;
-        case 'relation': option = buildRelationGraphOption(data, roleConfig, subjColor); break;
-        case 'flow':     option = buildFlowChartOption(data, roleConfig, subjColor); break;
-        default:         option = buildMindMapOption(data, roleConfig, subjColor); break;
-    }
+    // 安全过滤：移除引用不存在节点的边（防止 ECharts __original 崩溃）
+    const validNodeIds = new Set(data.nodes.map(n => String(n.id)));
+    const safeData = {
+        ...data,
+        edges: data.edges.filter(e =>
+            validNodeIds.has(String(e.source)) && validNodeIds.has(String(e.target))
+        ),
+    };
 
+    let option;
     try {
-        _mmChart.setOption(option);
+        switch (view) {
+            case 'concept':  option = buildConceptMapOption(safeData, roleConfig, subjColor); break;
+            case 'causal':   option = buildCausalDiagramOption(safeData, roleConfig, subjColor); break;
+            case 'relation': option = buildRelationGraphOption(safeData, roleConfig, subjColor); break;
+            case 'flow':     option = buildFlowChartOption(safeData, roleConfig, subjColor); break;
+            default:         option = buildMindMapOption(safeData, roleConfig, subjColor); break;
+        }
+        _mmChart.setOption(option, true);
     } catch (e) {
         console.error('知识图谱渲染错误:', e);
+        // 降级渲染：仅显示节点，不显示边
+        try {
+            const fallbackNodes = safeData.nodes.map(n => {
+                const cfg = roleConfig[n.role] || roleConfig.related;
+                return { id: String(n.id), name: n.name, symbolSize: cfg.size, itemStyle: { color: cfg.color }, label: { show: true }, _kpData: n };
+            });
+            _mmChart.setOption({ series: [{ type: 'graph', layout: 'force', data: fallbackNodes, links: [], roam: true }] }, true);
+        } catch (e2) { console.error('降级渲染也失败:', e2); }
     }
 
     if (!_mmChart._resizeBound) {
