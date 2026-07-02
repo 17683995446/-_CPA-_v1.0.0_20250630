@@ -69,7 +69,7 @@ class Settings:
     # --- 题库配置 ---
     QUESTION_BANK_THRESHOLD: int = 5000  # 题库不足此数时触发批量生成
     AUTO_SEED_ON_STARTUP: bool = True    # 启动时是否自动初始化种子数据与题库
-    QUESTION_DB_VERSION: str = "2026-07-01-v4"  # 题库版本号，变更后自动重建
+    QUESTION_DB_VERSION: str = "2026-07-02-v5"  # 题库版本号，变更后自动重建
 
     # --- 日志配置 ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

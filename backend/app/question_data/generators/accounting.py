@@ -487,7 +487,8 @@ def gen_accounting_batch4(db: Session, kps: dict[str, int]) -> int:
                 expense = round(rev * er, 2)
                 profit = round(rev - cost - expense, 2)
                 content = f"某企业营业收入{rev}万元，营业成本占收入{cr*100:.0f}%，期间费用占收入{er*100:.0f}%。营业利润为（　）万元。"
-                wrongs = [str(round(rev - cost, 2)), str(round(rev - expense, 2)), str(round(profit + rev * 0.1, 2))]
+                # 第三个干扰项用"只减一半费用"，避免 er=0.10 时 rev-cost == profit+rev*0.1 的重复
+                wrongs = [str(round(rev - cost, 2)), str(round(rev - expense, 2)), str(round(rev - cost - expense * 0.5, 2))]
                 all_opts = [(str(profit), True)]
                 seen = {str(profit)}
                 for w in wrongs:
