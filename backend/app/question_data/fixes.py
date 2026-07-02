@@ -315,6 +315,26 @@ def fix_existing_database(db: Session) -> dict:
     db.commit()
     stats["enhanced"] = enhanced
 
+    # 判断题 answer 修复（须在 _balance_judgment_answers 之后执行）：
+    # 选项打乱后 answer 字段可能仍为"正确"/"错误"文本，而正确选项的 label
+    # 已变为 A/B。由于 _balance_judgment_answers 依赖 answer 为"正确"/"错误"
+    # 文本来平衡正误分布，本修复放在其后，统一将 answer 设置为正确选项的 label，
+    # 使其与单选题保持一致（如 Q4 answer="正确" 但正确选项 label="B"）。
+    judgment_answer_fixed = 0
+    for q in db.query(Question).all():
+        if q.question_type != "judgment":
+            continue
+        correct_opt = next((o for o in q.options if o.is_correct), None)
+        if correct_opt is None:
+            continue
+        if q.answer != correct_opt.label:
+            q.answer = correct_opt.label
+            judgment_answer_fixed += 1
+    if judgment_answer_fixed:
+        db.flush()
+        db.commit()
+    stats["judgment_answer_fixed"] = judgment_answer_fixed
+
     return stats
 
 
