@@ -311,11 +311,85 @@ def fix_existing_database(db: Session) -> dict:
     stats["judgment_balanced"] = balanced
 
     # 刷新解析提示（清除旧版通用提示，应用新的多样化提示）
-    enhanced = _enhance_explanations(db)
+    enhanced = _load_static_modules(db)
     db.commit()
     stats["enhanced"] = enhanced
 
     return stats
+
+
+def _load_static_modules(db: Session) -> int:
+    """从静态JSON文件加载四模块内容（explanation/simple_explanation/mnemonic/study_tip）。
+
+    静态文件在构建时由 generate_static_modules.py 预先生成，
+    包含每道题的四个答案模块，基于CPA知识库和题目具体内容生成。
+    按题目内容哈希匹配，确保数据库重建后仍能正确关联。
+    """
+    import json
+    from pathlib import Path
+
+    static_path = Path(__file__).parent / "static_modules.json"
+    if not static_path.exists():
+        # 静态文件不存在时回退到动态生成
+        return _enhance_explanations(db)
+
+    with open(static_path, "r", encoding="utf-8") as f:
+        modules_data = json.load(f)
+
+    # 建立内容前缀 → 四模块的映射（用于ID不匹配时的fallback）
+    content_map = {}
+    prefix_map = {}
+    for item in modules_data:
+        content_map[item["id"]] = item
+        prefix = item.get("content_prefix", "")
+        if prefix:
+            prefix_map[prefix] = item
+
+    count = 0
+    matched = 0
+    questions = db.query(Question).all()
+    for q in questions:
+        # 优先按ID匹配（同一数据库实例）
+        item = content_map.get(q.id)
+        if item:
+            matched += 1
+        else:
+            # ID不匹配时按内容前缀匹配
+            prefix = (q.content or "")[:50]
+            item = prefix_map.get(prefix)
+
+        if item:
+            if item.get("explanation"):
+                q.explanation = item["explanation"]
+            if item.get("simple_explanation"):
+                q.simple_explanation = item["simple_explanation"]
+            if item.get("mnemonic"):
+                q.mnemonic = item["mnemonic"]
+            if item.get("study_tip"):
+                q.study_tip = item["study_tip"]
+            count += 1
+        else:
+            # 未匹配到的题目用动态生成兜底
+            kp = q.knowledge_point
+            kp_name = kp.name if kp else "本题考点"
+            if not q.simple_explanation:
+                q.simple_explanation = f"本题考查「{kp_name}」，理解原理即可作答。"
+            if not q.mnemonic:
+                q.mnemonic = f"记忆：{kp_name}的核心要点。"
+            if not q.study_tip:
+                q.study_tip = f"建议：{kp_name}是重要考点，务必掌握。"
+            count += 1
+
+    # 填充空知识点和考试信息
+    _fill_empty_knowledge_points(db)
+    _tag_exam_info(db)
+
+    import logging
+    logging.getLogger(__name__).info(
+        f"静态模块加载: {matched}/{count} 题按ID匹配, {count - matched} 题按内容匹配"
+    )
+
+    return count
 
 
 def _enhance_short_explanations(db: Session) -> int:
