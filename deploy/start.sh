@@ -4,7 +4,8 @@
 echo "=== 启动 CPA 学习系统 ==="
 
 # 后台启动 uvicorn
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2 &
+# 使用单 worker 避免多 worker 同时执行启动逻辑（数据库重建）导致竞态条件
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 &
 echo "uvicorn 已启动 (PID: $!)"
 
 # 等待 uvicorn 就绪

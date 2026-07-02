@@ -49,3 +49,4 @@ htmlcov/
 .coverage
 .pytest_cache/
 backend/app/.question_db_version
+backend/data/.question_db_version

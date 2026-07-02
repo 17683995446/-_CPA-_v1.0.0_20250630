@@ -57,8 +57,10 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         # ★ 版本检查：无论 AUTO_SEED_ON_STARTUP 是否开启，版本不匹配时必须重建
-        # 这确保 Docker 部署（AUTO_SEED_ON_STARTUP=false）也能自动更新题库
-        version_file = Path(__file__).parent / ".question_db_version"
+        # 版本文件放在 DATA_DIR（Docker volume 挂载点），这样：
+        #   - 新 volume：Docker 自动从镜像拷贝构建时数据+版本文件 → 版本匹配 → 无需重建
+        #   - 旧 volume：版本文件记录旧版本 → 版本不匹配 → 自动重建
+        version_file = settings.DATA_DIR / ".question_db_version"
         stored_version = ""
         if version_file.exists():
             stored_version = version_file.read_text(encoding="utf-8").strip()

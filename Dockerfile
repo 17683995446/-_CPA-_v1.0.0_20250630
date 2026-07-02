@@ -23,7 +23,8 @@ COPY backend/ .
 
 # 预生成数据库和题库（构建时完成，启动时直接用）
 # 同时执行 fix_existing_database 确保选项去重、打乱、解析增强
-RUN python -c "from app.db.session import init_db; from app.seed_data import run_seed; from app.question_data import generate_mass_questions; from app.question_data.fixes import fix_existing_database; from app.db.session import SessionLocal; from app.models import Question; init_db(); db=SessionLocal(); run_seed(db); generate_mass_questions(db); fix_existing_database(db); cnt=db.query(Question).count(); print(f'题目数: {cnt}'); db.close()"
+# 写入版本文件到 DATA_DIR，Docker 新 volume 会自动拷贝，启动时版本匹配则无需重建
+RUN python -c "from app.db.session import init_db; from app.seed_data import run_seed; from app.question_data import generate_mass_questions; from app.question_data.fixes import fix_existing_database; from app.db.session import SessionLocal; from app.models import Question; from app.config import settings; from pathlib import Path; init_db(); db=SessionLocal(); run_seed(db); generate_mass_questions(db); fix_existing_database(db); cnt=db.query(Question).count(); print(f'题目数: {cnt}'); Path(settings.DATA_DIR / '.question_db_version').write_text(settings.QUESTION_DB_VERSION, encoding='utf-8'); print(f'版本文件已写入: {settings.QUESTION_DB_VERSION}'); db.close()"
 
 # 执行 Alembic 迁移（确保数据库结构最新）
 RUN cd /app && alembic upgrade head 2>&1 || echo "Alembic migration skipped (already up to date)"
