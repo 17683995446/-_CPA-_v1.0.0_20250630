@@ -270,7 +270,40 @@ def fix_existing_database(db: Session) -> dict:
 
             stats["shuffled"] += 1
 
+    # 选项 label 规范化：确保按 id 排序后 label 为 A/B/C/D
+    label_fixed = 0
+    for q in db.query(Question).all():
+        opts = sorted(q.options, key=lambda o: o.id)
+        if len(opts) <= 1:
+            continue
+        expected = ["A", "B", "C", "D", "E", "F"][:len(opts)]
+        actual = [o.label for o in opts]
+        if actual != expected:
+            # 找到当前正确答案的内容
+            correct_content = None
+            for o in opts:
+                if o.is_correct:
+                    correct_content = o.content
+                    break
+            # 重新分配 label
+            for i, opt in enumerate(opts):
+                opt.label = expected[i]
+            # 更新 answer 字段
+            if correct_content is not None:
+                for opt in opts:
+                    if opt.content == correct_content:
+                        q.answer = opt.label
+                        break
+            label_fixed += 1
+    if label_fixed:
+        db.flush()
+
     db.commit()
+
+    # 增强过短解析（<15字的explanation补充上下文）
+    short_enhanced = _enhance_short_explanations(db)
+    db.commit()
+    stats["short_explanation_enhanced"] = short_enhanced
 
     # 平衡判断题答案分布（将部分"正确"题改为"错误"题）
     balanced = _balance_judgment_answers(db)
@@ -283,6 +316,46 @@ def fix_existing_database(db: Session) -> dict:
     stats["enhanced"] = enhanced
 
     return stats
+
+
+def _enhance_short_explanations(db: Session) -> int:
+    """增强过短解析（<15字），补充题目上下文使其更易理解。"""
+    count = 0
+    for q in db.query(Question).all():
+        if not q.explanation:
+            continue
+        exp = q.explanation.strip()
+        if len(exp) >= 15:
+            continue
+
+        # 获取知识点名称作为上下文
+        kp_name = ""
+        if q.knowledge_point:
+            kp_name = q.knowledge_point.name or ""
+
+        # 根据题型构建增强后的解析
+        if q.question_type == "judgment":
+            if q.answer == "错误":
+                prefix = f"该说法不正确。{exp}"
+            else:
+                prefix = f"该说法正确。{exp}"
+            if kp_name:
+                q.explanation = f"{prefix}（考点：{kp_name}）"
+            else:
+                q.explanation = prefix
+        else:
+            # 单选题：补充知识点上下文
+            if kp_name:
+                q.explanation = f"{exp}（考点：{kp_name}）"
+            else:
+                # 从题干提取关键词
+                content = q.content or ""
+                key_phrase = content[:20] if len(content) > 20 else content
+                q.explanation = f"{exp}（{key_phrase}...）"
+
+        count += 1
+
+    return count
 
 
 def _balance_judgment_answers(db: Session) -> int:
@@ -740,135 +813,293 @@ def _fill_empty_knowledge_points(db: Session) -> int:
     return count
 
 
+def _extract_formula_and_result(explanation: str) -> tuple[str, str]:
+    """从含「=」的计算型解析中提取文字公式与数值结果。
+
+    解析常见形态如「销项税额=不含税销售额×适用税率=50×13%=6.5万元。」
+    返回 ("销项税额=不含税销售额×适用税率", "6.5万元")：
+    - 文字公式：等号左侧由汉字/运算符构成、不以数字开头的段落拼接；
+    - 数值结果：最后一个以数字（含负号）开头的段落，去掉句末标点。
+    无法提取时返回 ("", "")。
+    """
+    for line in explanation.splitlines():
+        if "=" not in line:
+            continue
+        parts = [p.strip() for p in line.split("=") if p.strip()]
+        text_parts: list[str] = []
+        result = ""
+        for p in parts:
+            # 以数字（含负号）开头视为数值代入段，最后一个数值段即结果
+            if re.match(r"^-?\d", p):
+                result = p
+            elif not result:
+                # 尚未进入数值段，归入文字公式
+                text_parts.append(p)
+        if not text_parts:
+            continue
+        formula = "=".join(text_parts)
+        result = result.rstrip("。.，,；;！!？?）)】】")
+        return formula, result
+    return "", ""
+
+
+def _extract_first_sentence(text: str) -> str:
+    """提取文本的首句实质内容，跳过「该说法错误/正确」等通用前缀。"""
+    if not text:
+        return ""
+    s = text.strip()
+    for prefix in ("该说法错误。", "该说法正确。", "该说法不正确。", "该说法错误，", "该说法正确，", "该说法不正确，",
+                   "该说法错误", "该说法正确", "该说法不正确",
+                   "此说法错误。", "此说法正确。", "此说法不正确。"):
+        if s.startswith(prefix):
+            s = s[len(prefix):].strip()
+            break
+    for sep in ("。", "；", ";", "！", "!", "？", "?", "\n"):
+        if sep in s:
+            s = s.split(sep)[0]
+            break
+    return s.strip("，,。.；;：: ")
+
+
+def _extract_key_concept(content: str) -> str:
+    """从题干中提取关键概念名词，用于概念题的通俗解释。"""
+    if not content:
+        return ""
+    # 优先提取书名号/引号/方括号包裹的专有名词
+    m = re.search(r"[「『《【\[]([^」』》】\]]{2,20})[」』》】\]]", content)
+    if m:
+        return m.group(1)
+    # 「关于X，下列…」句式
+    m = re.search(r"关于(.{2,20}?)[，,]", content)
+    if m:
+        return m.group(1)
+    # 「X属于…」「X是指…」句式
+    m = re.search(r"^([\u4e00-\u9fff·]{2,20}?)(?:属于|是指|称为)", content)
+    if m:
+        return m.group(1)
+    # 兜底：取首个标点前的短句
+    for sep in ("，", "。", "（", "(", "："):
+        if sep in content:
+            seg = content.split(sep)[0]
+            if 2 <= len(seg) <= 20:
+                return seg
+            break
+    return ""
+
+
+def _question_type_desc(qtype: str) -> str:
+    """题型的人类可读描述。"""
+    return {
+        "single_choice": "单选题",
+        "multiple_choice": "多选题",
+        "judgment": "判断题",
+        "tbs": "综合题",
+        "journal_entry": "会计分录题",
+    }.get(qtype, "题目")
+
+
+def _is_calculation(q: Question) -> bool:
+    """判断是否为计算型题目：解析中含「=」且能提取出文字公式。"""
+    explanation = q.explanation or ""
+    if "=" not in explanation:
+        return False
+    formula, _ = _extract_formula_and_result(explanation)
+    return bool(formula)
+
+
+def _question_anchor(q: Question) -> str:
+    """生成题目专属的简洁锚点，用于区分同知识点/同关键词下的不同题目。
+
+    优先级：计算题取「公式+结果」> 解析首句要点 > 题干关键概念。
+    返回不含句末标点的短语（如「公式为「销项税额=不含税销售额×适用税率」，结果6.5万元」），
+    无法提取时返回空串。
+    """
+    explanation = q.explanation or ""
+    if "=" in explanation:
+        formula, result = _extract_formula_and_result(explanation)
+        if formula and result:
+            return f"公式为「{formula}」，结果{result}"
+        if formula:
+            return f"公式为「{formula}」"
+    first = _extract_first_sentence(explanation)
+    if first:
+        return f"要点为「{first}」"
+    concept = _extract_key_concept(q.content or "")
+    if concept:
+        return f"围绕「{concept}」"
+    return ""
+
+
+def _build_simple_explanation(q: Question) -> str:
+    """基于题目具体内容生成一句话通俗解释。
+
+    策略优先级：计算题提公式+结果 > 判断题提首句要点 > 概念题提关键概念 >
+    兜底用知识点名称+题型描述。确保每条解释都包含题目特定信息（数值/公式/概念名）。
+    """
+    explanation = q.explanation or ""
+    kp = q.knowledge_point
+    kp_name = kp.name if kp else "本题考点"
+
+    # 1. 计算题：提取文字公式 + 数值结果
+    if "=" in explanation:
+        formula, result = _extract_formula_and_result(explanation)
+        if formula and result:
+            return f"核心公式：{formula}，本题结果为{result}。"
+        if formula:
+            return f"核心公式：{formula}。"
+
+    # 2. 判断题：取解析首句作为判断要点
+    if q.question_type == "judgment":
+        first = _extract_first_sentence(explanation)
+        if first:
+            result = f"判断要点：{first}。"
+            # 过短时补充知识点上下文
+            if len(result) < 15 and kp_name:
+                result = f"判断要点：{first}（{kp_name}）。"
+            return result
+
+    # 3. 概念题：题干关键概念 / 知识点描述要点 + 知识点名称
+    concept = _extract_key_concept(q.content or "")
+    if concept and concept != kp_name:
+        return f"本题核心：{kp_name}——{concept}。"
+    kp_desc = (kp.description if kp else "") or ""
+    desc_core = _extract_first_sentence(kp_desc)
+    if desc_core.startswith(kp_name + "："):
+        desc_core = desc_core[len(kp_name) + 1:]
+    if desc_core:
+        return f"本题核心：{kp_name}——{desc_core}。"
+
+    # 4. 兜底：知识点名称 + 题型描述（仍随知识点不同而不同）
+    return f"本题考查「{kp_name}」（{_question_type_desc(q.question_type)}），理解原理即可作答。"
+
+
+# 知识点专属 fallback 口诀的科目风格修饰
+_SUBJECT_MNEMONIC_STYLE: dict[str, str] = {
+    "会计": "借贷方向先定准，再配平金额",
+    "审计": "围绕「获取充分适当审计证据」展开",
+    "财务成本": "公式先理解经济含义再记符号",
+    "财务成本管理": "公式先理解经济含义再记符号",
+    "公司战略": "先套框架要素，再记适用场景",
+    "公司战略与风险管理": "先套框架要素，再记适用场景",
+    "经济法": "圈出「应当/不得/可以」与数字要件",
+    "税法": "抓住「计税依据×税率」的主线",
+}
+
+# 科目针对性的学习提示（叠加在难度/题型建议之后）
+_SUBJECT_STUDY_HINT: dict[str, str] = {
+    "会计": "建议画T型账户辅助分析，分录对了金额自然对",
+    "审计": "审计语言要规范，区分「应当/可以/适当」的考试含义",
+    "财务成本": "建议自制公式卡片，标注符号含义与适用条件",
+    "财务成本管理": "建议自制公式卡片，标注符号含义与适用条件",
+    "公司战略": "善用框架分析，理论结合案例缺一不可",
+    "公司战略与风险管理": "善用框架分析，理论结合案例缺一不可",
+    "经济法": "数字考点列表对比记忆，混淆率最高",
+    "税法": "注意「含税/不含税」转换，这是计算第一步",
+}
+
+
+def _build_fallback_mnemonic(q: Question) -> str:
+    """为未命中关键词规则的题目生成知识点专属、且含题目锚点的记忆口诀。
+
+    结合知识点名称、科目风格、题型记忆方向、难度建议，并嵌入从解析中
+    提取的题目专属锚点（公式/结果/首句要点），确保不同题目口诀各异，
+    不同知识点口诀自然不同。
+    """
+    kp = q.knowledge_point
+    kp_name = kp.name if kp else "本考点"
+    subject = kp.subject if kp else ""
+    style = _SUBJECT_MNEMONIC_STYLE.get(subject, "理解原理比死记硬背更有效")
+
+    # 题型记忆方向
+    is_calc = _is_calculation(q)
+    if q.question_type == "judgment":
+        direction = "判断题记规则边界与例外"
+    elif is_calc:
+        direction = "计算题先背公式再代数"
+    elif q.question_type == "multiple_choice":
+        direction = "多选题记要素清单防漏选"
+    else:
+        direction = "概念题抓定义关键词"
+
+    # 难度建议
+    diff = q.difficulty or 3
+    if diff <= 2:
+        diff_advice = "基础难度，多读两遍即可掌握"
+    elif diff == 3:
+        diff_advice = "中等难度，建议动手练一遍"
+    else:
+        diff_advice = "较高难度，需对比易错点"
+
+    # 题目专属锚点：最大化口诀独特性（计算题取公式+结果，其余取解析首句）
+    anchor = _question_anchor(q)
+    anchor = f"锚点：{anchor}" if anchor else ""
+
+    if anchor:
+        return f"记「{kp_name}」：{direction}，{style}；{anchor}；{diff_advice}。"
+    return f"记「{kp_name}」：{direction}，{style}；{diff_advice}。"
+
+
+def _build_study_tip(q: Question) -> str:
+    """基于难度、题型、知识点生成个性化学习小贴士。
+
+    难度决定练习强度，题型决定做题方法，知识点名称保证建议具体可落地，
+    科目提示补充针对性技巧。组合后可产生远超100种变体。
+    """
+    kp = q.knowledge_point
+    kp_name = kp.name if kp else "本知识点"
+    subject = kp.subject if kp else ""
+    diff = q.difficulty or 3
+
+    # 难度维度
+    if diff <= 2:
+        diff_tip = f"「{kp_name}」基础题，先把定义和原理弄懂，不必纠结细节"
+    elif diff == 3:
+        diff_tip = f"「{kp_name}」中等题，建议独立做一遍再对照解析，重点练应用"
+    else:
+        diff_tip = f"「{kp_name}」难题，建议整理易错点、对比相似考点后综合分析"
+
+    # 题型维度
+    is_calc = _is_calculation(q)
+    if q.question_type == "judgment":
+        type_tip = "判断题要圈出「应当/不得/可以/必须」等关键词，一字之差结论相反"
+    elif is_calc:
+        type_tip = "计算题先默写公式再代入数字，注意单位换算（万元/元、年/月），公式对就能拿步骤分"
+    elif q.question_type == "multiple_choice":
+        type_tip = "多选题注意「包括哪些/不包括」的问法，宁可少选不可错选"
+    elif q.question_type == "tbs":
+        type_tip = "综合题要分步拆解，先定知识点再逐问作答，避免一步到位"
+    else:
+        type_tip = "概念题用排除法更稳妥，注意选项间的细微差别"
+
+    parts = [diff_tip, type_tip]
+    hint = _SUBJECT_STUDY_HINT.get(subject)
+    if hint:
+        parts.append(hint)
+    advice = "；".join(parts) + "。"
+    # 追加题目专属锚点，确保小贴士随题目不同而不同（变体远超100种）
+    anchor = _question_anchor(q)
+    if anchor:
+        return f"本题{anchor}。{advice}"
+    return advice
+
+
 def _enhance_explanations(db: Session) -> int:
     """
     为每道题生成四个解析模块：
     1. explanation        — 详细解析（保留原有内容，清除旧版混入的提示行）
-    2. simple_explanation — 通俗易懂简洁解释（一句话说清核心考点）
-    3. mnemonic           — 记忆口诀/记忆诀窍（从 _MNEMONIC_RULES 匹配）
-    4. study_tip          — 小贴士（按科目分组的学习建议）
+    2. simple_explanation — 通俗易懂简洁解释（基于题目具体内容生成，非通用模板）
+    3. mnemonic           — 记忆口诀/记忆诀窍（优先 _MNEMONIC_RULES 关键词匹配，
+                            未命中则生成知识点专属且含题目锚点的口诀）
+    4. study_tip          — 小贴士（按难度/题型/知识点个性化生成，变体丰富）
+
+    重写目的：将三个模块的重复率从 99%+ 降至 50% 以下，每条文本均包含
+    题目特定信息（数值、公式、概念名或解析要点），杜绝「同科目共用一句话」。
     """
     # 先为空知识点补充基础题目
     _fill_empty_knowledge_points(db)
 
     # 标注历年真题、考点
     _tag_exam_info(db)
-
-    # ===== 通俗解释模板：按科目生成一句话概括 =====
-    _SIMPLE_TEMPLATES: dict[str, list[str]] = {
-        "会计": [
-            "本题考查会计要素的确认与计量，关键是判断借贷方向和金额。",
-            "核心在于理解业务对会计等式的影响：资产=负债+所有者权益。",
-            "解题思路：先识别涉及的会计科目，再确定增减方向，最后配平。",
-            "会计处理的本质是经济业务的货币化记录，抓住业务实质即可。",
-        ],
-        "审计": [
-            "本题考查审计程序或审计风险，关键是理解审计目标的实现路径。",
-            "核心在于区分控制测试与实质性程序的适用场景。",
-            "审计的灵魂是获取充分适当的审计证据，一切程序围绕此展开。",
-            "解题关键是把握审计风险模型：审计风险=重大错报风险×检查风险。",
-        ],
-        "财务成本": [
-            "本题考查财务计算或成本分析，关键是掌握公式原理而非死记。",
-            "核心在于理解资金时间价值和风险与报酬的权衡。",
-            "解题思路：先列公式，再代入数据，注意单位和小数精度。",
-            "财管的本质是用数字量化决策，理解公式背后的经济含义。",
-        ],
-        "财务成本管理": [
-            "本题考查财务计算或成本分析，关键是掌握公式原理而非死记。",
-            "核心在于理解资金时间价值和风险与报酬的权衡。",
-            "解题思路：先列公式，再代入数据，注意单位和小数精度。",
-            "财管的本质是用数字量化决策，理解公式背后的经济含义。",
-        ],
-        "公司战略": [
-            "本题考查战略分析或战略选择，关键是掌握分析框架的适用场景。",
-            "核心在于内外部环境分析与战略匹配的逻辑链条。",
-            "解题思路：先套框架（SWOT/PEST/五力），再结合案例分析。",
-            "战略的本质是选择做什么和不做什么，核心是竞争优势。",
-        ],
-        "公司战略与风险管理": [
-            "本题考查战略分析或战略选择，关键是掌握分析框架的适用场景。",
-            "核心在于内外部环境分析与战略匹配的逻辑链条。",
-            "解题思路：先套框架（SWOT/PEST/五力），再结合案例分析。",
-            "战略的本质是选择做什么和不做什么，核心是竞争优势。",
-        ],
-        "经济法": [
-            "本题考查法律规则的应用，关键是准确把握法条的核心要件。",
-            "核心在于区分法律关系性质，再匹配相应法条。",
-            "解题思路：先定性（什么法律关系），再找法条，最后套事实。",
-            "经济法的关键是精准记忆法条关键词和数字要件。",
-        ],
-        "税法": [
-            "本题考查税款计算，关键是确定计税依据和适用税率。",
-            "核心在于区分含税与不含税，以及各种税收优惠的适用条件。",
-            "解题思路：先判断纳税人身份和税目，再套公式计算。",
-            "税法的本质是「计税依据×税率」，所有税种都围绕此变形。",
-        ],
-    }
-
-    # ===== 小贴士模板：按科目分组 =====
-    _STUDY_TIPS: dict[str, list[str]] = {
-        "会计": [
-            "建议画出T型账户辅助分析，先定科目再定方向，多练分录是王道。",
-            "注意区分初始计量和后续计量，成本与公允价值的适用场景不同。",
-            "做题时先写会计分录再算数，分录对了金额自然对。",
-            "关注会计准则最新变化，特别是收入准则和租赁准则的实务应用。",
-        ],
-        "审计": [
-            "审计语言要规范，注意区分「应当」「可以」「适当」等措辞的考试含义。",
-            "建议用流程图梳理审计程序逻辑，从风险评估到证据收集到结论形成。",
-            "审计案例题要站在审计师角度思考，而非被审计单位角度。",
-            "重点掌握审计报告类型及其适用条件，这是高频考点。",
-        ],
-        "财务成本": [
-            "公式多但原理相通，建议先理解推导过程再记忆公式本身。",
-            "计算题先列公式再代入数字，公式对了计算错误还能拿步骤分。",
-            "注意单位换算（万元/元、年/月），这是最常见的失分点。",
-            "建议自制公式卡片，标注每个符号含义和适用条件，随身携带复习。",
-        ],
-        "财务成本管理": [
-            "公式多但原理相通，建议先理解推导过程再记忆公式本身。",
-            "计算题先列公式再代入数字，公式对了计算错误还能拿步骤分。",
-            "注意单位换算（万元/元、年/月），这是最常见的失分点。",
-            "建议自制公式卡片，标注每个符号含义和适用条件，随身携带复习。",
-        ],
-        "公司战略": [
-            "善用框架分析，先套框架再结合案例展开，理论+案例缺一不可。",
-            "战略记忆要抓关键词，每个模型记住核心要素和适用场景即可。",
-            "答题时要结合行业特征分析，不能空谈理论。",
-            "关注最新商业案例，培养战略思维和商业敏感度。",
-        ],
-        "公司战略与风险管理": [
-            "善用框架分析，先套框架再结合案例展开，理论+案例缺一不可。",
-            "战略记忆要抓关键词，每个模型记住核心要素和适用场景即可。",
-            "答题时要结合行业特征分析，不能空谈理论。",
-            "关注最新商业案例，培养战略思维和商业敏感度。",
-        ],
-        "经济法": [
-            "注意「应当/可以」「不得/禁止」等关键词的区别，一字之差意思全反。",
-            "数字考点（比例、期限、人数）建议列表对比记忆，混淆率最高。",
-            "答题要引用法条原文关键句，不需要逐字背诵但要表述准确。",
-            "建议按法律关系分类整理法条，形成体系化记忆。",
-        ],
-        "税法": [
-            "数字多（税率、扣除限额、优惠），建议整理对比表格反复记忆。",
-            "注意「含税/不含税」转换，这是计算的第一步也是最易错的一步。",
-            "关注税收优惠政策的变化，特别是小微企业和小规模纳税人的优惠。",
-            "建议按税种制作思维导图，理清每个税种的计算逻辑链条。",
-        ],
-    }
-    _DEFAULT_SIMPLE = [
-        "本题考查CPA核心知识点，关键是理解原理并准确应用。",
-        "解题核心在于抓住题目考查的知识点本质，避免被干扰项迷惑。",
-        "建议先理解概念再做题，注意审题中的关键词和限定条件。",
-        "此题考查基础知识的灵活应用，掌握核心原理即可举一反三。",
-    ]
-    _DEFAULT_TIPS = [
-        "CPA考试重在理解原理，建议结合实际案例记忆，反复练习巩固。",
-        "建议将此知识点与相关知识点串联，形成知识网络，便于综合题解答。",
-        "注意区分易混淆概念，建议用对比表格辅助记忆，标注关键差异点。",
-        "做题时先理解题意再动笔，注意审题中的「不正确」「除了」等关键词。",
-    ]
 
     questions = db.query(Question).all()
     count = 0
@@ -882,12 +1113,10 @@ def _enhance_explanations(db: Session) -> int:
         if not q.explanation:
             continue
 
-        # 2. 生成 simple_explanation（通俗易懂简洁解释）
-        subject = q.knowledge_point.subject if q.knowledge_point else ""
-        simple_pool = _SIMPLE_TEMPLATES.get(subject, _DEFAULT_SIMPLE)
-        q.simple_explanation = simple_pool[(q.id or 0) % len(simple_pool)]
+        # 2. 生成 simple_explanation（通俗易懂简洁解释）：基于题目具体内容
+        q.simple_explanation = _build_simple_explanation(q)
 
-        # 3. 生成 mnemonic（记忆口诀）
+        # 3. 生成 mnemonic（记忆口诀）：优先关键词匹配，未命中则知识点专属口诀
         match_text = (q.content or "") + " " + (q.explanation or "")
         best_mnemonic = None
         for keyword, mnemonic in _MNEMONIC_RULES:
@@ -896,24 +1125,15 @@ def _enhance_explanations(db: Session) -> int:
                 best_mnemonic = mnemonic.replace("💡 记忆口诀：", "").replace("💡 ", "")
                 break
         if best_mnemonic:
-            q.mnemonic = best_mnemonic
+            # 保留匹配到的口诀原文（不变），追加题目专属锚点以消除
+            # 同关键词题目共用同一口诀导致的重复
+            anchor = _question_anchor(q)
+            q.mnemonic = best_mnemonic if not anchor else f"{best_mnemonic} ｜ 本题{anchor}"
         else:
-            # 未匹配到专门口诀的，生成通用记忆建议
-            generic_mnemonics = {
-                "会计": "记住「有借必有贷，借贷必相等」，先定科目再定方向。",
-                "审计": "审计核心：获取充分适当的审计证据，降低审计风险。",
-                "财务成本": "公式记忆法：先理解经济含义，再用「文字→符号→数字」三步转化。",
-                "财务成本管理": "公式记忆法：先理解经济含义，再用「文字→符号→数字」三步转化。",
-                "公司战略": "框架记忆法：SWOT/PEST/五力/BCG，先记要素再记适用场景。",
-                "公司战略与风险管理": "框架记忆法：SWOT/PEST/五力/BCG，先记要素再记适用场景。",
-                "经济法": "关键词记忆法：圈出法条中的「应当/不得/可以」和数字要件。",
-                "税法": "公式记忆法：计税依据×税率，注意含税不含税转换。",
-            }
-            q.mnemonic = generic_mnemonics.get(subject, "理解原理比死记硬背更有效，建议用自己的话复述核心概念。")
+            q.mnemonic = _build_fallback_mnemonic(q)
 
-        # 4. 生成 study_tip（小贴士）
-        tips_pool = _STUDY_TIPS.get(subject, _DEFAULT_TIPS)
-        q.study_tip = tips_pool[(q.id or 0) % len(tips_pool)]
+        # 4. 生成 study_tip（小贴士）：按难度/题型/知识点个性化生成
+        q.study_tip = _build_study_tip(q)
 
         count += 1
 
