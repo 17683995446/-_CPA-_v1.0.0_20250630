@@ -910,40 +910,74 @@ def _is_calculation(q: Question) -> bool:
 def _question_anchor(q: Question) -> str:
     """生成题目专属的简洁锚点，用于区分同知识点/同关键词下的不同题目。
 
-    优先级：计算题取「公式+结果」> 解析首句要点 > 题干关键概念。
-    返回不含句末标点的短语（如「公式为「销项税额=不含税销售额×适用税率」，结果6.5万元」），
-    无法提取时返回空串。
+    优先级：计算题取「公式+结果」+题干数值 > 解析首句要点+题干数值 > 题干关键概念+数值。
+    返回不含句末标点的短语，无法提取时返回空串。
     """
     explanation = q.explanation or ""
+    content = q.content or ""
+    key_nums = _extract_key_numbers(content)
+
     if "=" in explanation:
         formula, result = _extract_formula_and_result(explanation)
         if formula and result:
-            return f"公式为「{formula}」，结果{result}"
+            base = f"公式为「{formula}」，结果{result}"
+            if key_nums:
+                return f"{base}，已知{key_nums}"
+            return base
         if formula:
             return f"公式为「{formula}」"
     first = _extract_first_sentence(explanation)
     if first:
+        if key_nums:
+            return f"要点为「{first}」，涉及{key_nums}"
         return f"要点为「{first}」"
-    concept = _extract_key_concept(q.content or "")
+    concept = _extract_key_concept(content)
     if concept:
-        return f"围绕「{concept}」"
+        if key_nums:
+            return f"围绕「{concept}」，涉及{key_nums}"
+        # 无数值时用题干片段
+        snippet = content[:15].replace("（", "").replace("）", "").strip()
+        return f"题干「{snippet}」"
     return ""
+
+
+def _extract_key_numbers(content: str) -> str:
+    """从题干中提取关键数值（如金额、百分比、年份），用于差异化重复内容。"""
+    if not content:
+        return ""
+    # 提取所有数值（含万元/元/%等单位）
+    numbers = re.findall(r'(\d+(?:\.\d+)?)\s*(万元|元|%|件|个|股|天|月|年|次|人|笔|期|度)?', content)
+    if not numbers:
+        return ""
+    # 取前3个有意义的数值
+    result = []
+    for num, unit in numbers[:3]:
+        if unit:
+            result.append(f"{num}{unit}")
+        else:
+            result.append(num)
+    return "、".join(result)
 
 
 def _build_simple_explanation(q: Question) -> str:
     """基于题目具体内容生成一句话通俗解释。
 
-    策略优先级：计算题提公式+结果 > 判断题提首句要点 > 概念题提关键概念 >
+    策略优先级：计算题提公式+结果 > 判断题提首句要点 > 概念题提关键概念+数值 >
     兜底用知识点名称+题型描述。确保每条解释都包含题目特定信息（数值/公式/概念名）。
     """
     explanation = q.explanation or ""
     kp = q.knowledge_point
     kp_name = kp.name if kp else "本题考点"
+    content = q.content or ""
 
     # 1. 计算题：提取文字公式 + 数值结果
     if "=" in explanation:
         formula, result = _extract_formula_and_result(explanation)
         if formula and result:
+            # 追加题干数值以区分同公式同结果的题目
+            key_nums = _extract_key_numbers(content)
+            if key_nums:
+                return f"核心公式：{formula}，本题结果为{result}（已知{key_nums}）。"
             return f"核心公式：{formula}，本题结果为{result}。"
         if formula:
             return f"核心公式：{formula}。"
@@ -958,15 +992,22 @@ def _build_simple_explanation(q: Question) -> str:
                 result = f"判断要点：{first}（{kp_name}）。"
             return result
 
-    # 3. 概念题：题干关键概念 / 知识点描述要点 + 知识点名称
-    concept = _extract_key_concept(q.content or "")
+    # 3. 概念题：题干关键概念 + 题干数值 + 知识点名称
+    concept = _extract_key_concept(content)
+    key_nums = _extract_key_numbers(content)
     if concept and concept != kp_name:
-        return f"本题核心：{kp_name}——{concept}。"
+        if key_nums:
+            return f"本题核心：{kp_name}——{concept}（涉及{key_nums}）。"
+        # 无数值时用题干前20字作为差异化因子
+        snippet = content[:20].replace("（", "").replace("）", "").strip()
+        return f"本题核心：{kp_name}——{snippet}。"
     kp_desc = (kp.description if kp else "") or ""
     desc_core = _extract_first_sentence(kp_desc)
     if desc_core.startswith(kp_name + "："):
         desc_core = desc_core[len(kp_name) + 1:]
     if desc_core:
+        if key_nums:
+            return f"本题核心：{kp_name}——{desc_core}（涉及{key_nums}）。"
         return f"本题核心：{kp_name}——{desc_core}。"
 
     # 4. 兜底：知识点名称 + 题型描述（仍随知识点不同而不同）
@@ -1076,10 +1117,16 @@ def _build_study_tip(q: Question) -> str:
     if hint:
         parts.append(hint)
     advice = "；".join(parts) + "。"
-    # 追加题目专属锚点，确保小贴士随题目不同而不同（变体远超100种）
+    # 追加题目专属锚点+题干摘要，确保小贴士随题目不同而不同
     anchor = _question_anchor(q)
-    if anchor:
+    # 从题干提取交易类型（前15字）作为额外差异化因子
+    snippet = (q.content or "")[:15].replace("（", "").replace("）", "").strip()
+    if anchor and snippet:
+        return f"本题{anchor}（{snippet}…）。{advice}"
+    elif anchor:
         return f"本题{anchor}。{advice}"
+    elif snippet:
+        return f"题干「{snippet}…」。{advice}"
     return advice
 
 
