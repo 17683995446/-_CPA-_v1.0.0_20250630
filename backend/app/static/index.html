@@ -123,6 +123,10 @@
             <div class="nav-item" onclick="showPage('achievements')" data-page="achievements">
                 <span class="icon">🏆</span> 成就墙
             </div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 18px 8px;margin-top:12px">智能分析</div>
+            <div class="nav-item" onclick="showPage('llm')" data-page="llm">
+                <span class="icon">🤖</span> AI 学习助手
+            </div>
         </div>
 
         <!-- 主内容 -->
@@ -458,6 +462,76 @@
                     <div class="empty-state" style="grid-column:1/-1"><div class="icon">🏆</div><h3>暂无成就</h3><p>持续学习解锁更多成就</p></div>
                 </div>
             </div>
+
+            <!-- AI 学习助手 -->
+            <div class="page" id="page-llm">
+                <h2 class="page-title">🤖 AI 学习助手</h2>
+
+                <!-- LLM 状态指示 -->
+                <div id="llm-status-bar" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;background:var(--bg-secondary)">
+                    <span id="llm-mode-dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>
+                    <span id="llm-mode-text">正在检查 AI 服务状态...</span>
+                </div>
+
+                <!-- Tab 切换 -->
+                <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+                    <button class="btn btn-primary llm-tab active" onclick="switchLLMTab('report')" data-tab="report">📋 学习诊断</button>
+                    <button class="btn llm-tab" onclick="switchLLMTab('error')" data-tab="error">🔍 错题归因</button>
+                    <button class="btn llm-tab" onclick="switchLLMTab('similar')" data-tab="similar">🔗 相似题推荐</button>
+                    <button class="btn llm-tab" onclick="switchLLMTab('explain')" data-tab="explain">💡 深度解析</button>
+                </div>
+
+                <!-- Tab: 学习诊断报告 -->
+                <div id="llm-tab-report" class="llm-tab-content">
+                    <div style="display:flex;gap:12px;margin-bottom:16px">
+                        <button class="btn btn-primary" onclick="generateReport()">生成诊断报告</button>
+                        <button class="btn" onclick="loadLatestReport()">查看最新报告</button>
+                    </div>
+                    <div id="report-display" class="empty-state">
+                        <div class="icon">📋</div>
+                        <h3>暂无诊断报告</h3>
+                        <p>点击"生成诊断报告"获取个性化学习建议</p>
+                    </div>
+                </div>
+
+                <!-- Tab: 错题归因 -->
+                <div id="llm-tab-error" class="llm-tab-content" style="display:none">
+                    <div style="margin-bottom:16px">
+                        <h3 style="margin-bottom:8px">错误类型分布</h3>
+                        <div id="error-stats-chart" style="max-width:400px;height:200px"></div>
+                    </div>
+                    <h3 style="margin-bottom:8px">近期错题归因</h3>
+                    <div id="error-analysis-list" class="empty-state">
+                        <div class="icon">🔍</div>
+                        <h3>暂无归因记录</h3>
+                        <p>答题错误后将自动生成归因分析</p>
+                    </div>
+                </div>
+
+                <!-- Tab: 相似题推荐 -->
+                <div id="llm-tab-similar" class="llm-tab-content" style="display:none">
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:13px;color:var(--text-muted)">输入题目ID</label>
+                        <div style="display:flex;gap:8px;margin-top:4px">
+                            <input type="number" id="similar-qid" placeholder="例如: 1" style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text)">
+                            <button class="btn btn-primary" onclick="findSimilar()">推荐相似题</button>
+                        </div>
+                    </div>
+                    <div id="similar-results"></div>
+                </div>
+
+                <!-- Tab: 深度解析 -->
+                <div id="llm-tab-explain" class="llm-tab-content" style="display:none">
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:13px;color:var(--text-muted)">输入题目ID</label>
+                        <div style="display:flex;gap:8px;margin-top:4px">
+                            <input type="number" id="explain-qid" placeholder="例如: 1" style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text)">
+                            <button class="btn btn-primary" onclick="enhanceExplanation()">生成深度解析</button>
+                        </div>
+                    </div>
+                    <div id="explain-results"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -482,6 +556,7 @@
 <script src="/static/js/mindmap.js"></script>
 <script src="/static/js/journal.js"></script>
 <script src="/static/js/gamification.js"></script>
+<script src="/static/js/llm.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

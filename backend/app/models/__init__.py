@@ -5,6 +5,7 @@ ORM 模型汇总导入。
 """
 from app.models.gamification import Achievement, UserAchievement, UserStreak
 from app.models.knowledge import KnowledgeEdge, KnowledgePoint
+from app.models.llm import ErrorAnalysis, QuestionEmbedding, StudyReport
 from app.models.mastery import UserMastery
 from app.models.question import Question, QuestionOption
 from app.models.review import ReviewCard, ReviewLog
@@ -26,4 +27,8 @@ __all__ = [
     "Achievement",
     "UserAchievement",
     "UserStreak",
+    # LLM 模型
+    "QuestionEmbedding",
+    "ErrorAnalysis",
+    "StudyReport",
 ]

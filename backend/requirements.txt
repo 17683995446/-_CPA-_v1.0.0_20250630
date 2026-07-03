@@ -11,3 +11,7 @@ alembic==1.18.5
 pytest==9.1.1
 pytest-asyncio==1.4.0
 httpx==0.28.1
+
+# LLM 模块依赖
+openai==1.82.0           # OpenAI 兼容 API 客户端（支持 DeepSeek/Qwen 等）
+numpy==2.2.6             # 向量相似度计算

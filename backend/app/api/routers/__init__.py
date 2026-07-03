@@ -14,6 +14,7 @@ from app.api.routers import (
     gamification,
     journal,
     knowledge,
+    llm,
     mastery,
     questions,
     review,
@@ -31,6 +32,7 @@ _ROUTER_MODULES: list[tuple[APIRouter, str, str]] = [
     (gamification.router, "游戏化", "等级、XP、成就、连续学习"),
     (journal.router, "学习日志", "会计分录判错练习"),
     (study.router, "学习会话", "学习会话管理、答题记录"),
+    (llm.router, "智能分析", "LLM 错题归因、诊断报告、相似题推荐、解析增强"),
 ]
 
 

@@ -72,7 +72,10 @@ async def lifespan(app: FastAPI):
             logger.warning("题库版本不匹配 (存储=%s, 当前=%s)，重建题库...",
                            stored_version, settings.QUESTION_DB_VERSION)
             # 删除旧题目和知识点（保留用户学习记录）
-            from app.models import QuestionOption, KnowledgePoint
+            # 先删除 LLM 关联表（有外键指向 questions），再删选项和题目
+            from app.models import QuestionOption, KnowledgePoint, QuestionEmbedding, ErrorAnalysis
+            db.query(ErrorAnalysis).delete()
+            db.query(QuestionEmbedding).delete()
             db.query(QuestionOption).delete()
             db.query(Question).delete()
             db.query(KnowledgePoint).delete()

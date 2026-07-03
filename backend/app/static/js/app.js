@@ -15,6 +15,7 @@ function showPage(page) {
     if (page === 'viz') loadKnowledgeVizPage();
     if (page === 'journal') loadJournalPage();
     if (page === 'achievements') loadAchievementsPage();
+    if (page === 'llm') loadLLMPage();
 }
 
 // ===== 初始化 =====

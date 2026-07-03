@@ -117,6 +117,17 @@ class Settings:
         )
         self.QUESTION_DB_VERSION: str = "2026-07-02-v5"
 
+        # --- LLM 配置 ---
+        # 使用 OpenAI 兼容接口，支持 DeepSeek / Qwen / OpenAI 等
+        self.LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
+        self.LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "https://api.siliconflow.cn/v1")
+        self.LLM_MODEL: str = os.getenv("LLM_MODEL", "Qwen/Qwen2.5-14B-Instruct")
+        self.LLM_EMBEDDING_MODEL: str = os.getenv("LLM_EMBEDDING_MODEL", "BAAI/bge-m3")
+        self.LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
+        self.LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
+        self.LLM_EMBEDDING_DIM: int = int(os.getenv("LLM_EMBEDDING_DIM", "1024"))
+        self.LLM_ENABLED: bool = os.getenv("LLM_ENABLED", "false").lower() == "true"
+
         # --- 日志配置 ---
         self.LOG_LEVEL: str = _get_env("LOG_LEVEL", "DEBUG" if self.DEBUG else "INFO", str)
 
