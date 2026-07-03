@@ -32,9 +32,11 @@ async function checkLLMStatus() {
         const dot = document.getElementById('llm-mode-dot');
         const text = document.getElementById('llm-mode-text');
 
-        if (data.data.available) {
+        // API 返回 {"available": true, "mode": "llm"} 或 {"code":200,"data":{...}}
+        const info = data.data || data;
+        if (info.available) {
             dot.style.background = '#22c55e';
-            text.textContent = 'AI 服务已连接（LLM 模式）';
+            text.textContent = info.mode === 'llm' ? 'AI 服务已连接（LLM 模式 · Qwen2.5-14B）' : 'AI 服务已连接';
         } else {
             dot.style.background = '#f59e0b';
             text.textContent = 'AI 服务未启用（规则降级模式，配置 API Key 后启用智能分析）';
