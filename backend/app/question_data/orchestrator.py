@@ -3,7 +3,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.question_data.fixes import _enhance_explanations, _shuffle_all_options
+from app.question_data.fixes import _shuffle_all_options
 from app.question_data.generators import (
     gen_accounting,
     gen_accounting_batch3,
@@ -28,6 +28,7 @@ from app.question_data.generators import (
     gen_tax_batch3,
     gen_tax_extra,
 )
+from app.question_data.module_builders import enhance_explanations
 from app.question_data.past_exams import _import_past_exams
 
 logger = logging.getLogger("app.question_data.orchestrator")
@@ -158,7 +159,7 @@ def generate_mass_questions(db: Session) -> int:
     logger.info("  选项打乱: %d 题", shuffled)
 
     # 为解析追加通俗化记忆口诀
-    enhanced = _enhance_explanations(db)
+    enhanced = enhance_explanations(db)
     db.commit()
     logger.info("  解析增强: %d 题", enhanced)
 

@@ -1,16 +1,11 @@
 """全科目通用题目生成器（判断题与概念题）。"""
-import random
 
 from sqlalchemy.orm import Session
 
 from app.question_data.helpers import (
     _add_question,
-    _ensure_kp,
-    _extract_number,
     _gen_judgment,
     _gen_single_choice,
-    _is_pure_numeric,
-    _shuffled_opts,
 )
 
 

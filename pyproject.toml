@@ -33,6 +33,27 @@ markers = [
     "system: 系统测试 — 端到端完整流程测试",
 ]
 
+[tool.coverage.run]
+source = ["backend/app"]
+omit = [
+    "backend/app/question_data/generators/*",
+    "backend/app/past_exam_data*.py",
+    "backend/app/static/*",
+]
+parallel = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 120

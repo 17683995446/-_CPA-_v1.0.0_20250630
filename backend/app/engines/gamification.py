@@ -19,10 +19,9 @@
 - 成就系统：学习/连续/掌握/特殊 四类
 - Streak：每日学习连续天数，配保护卡
 """
-import math
 import random
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from enum import Enum
 from typing import Optional
 

@@ -17,7 +17,7 @@ FSRS 用三个变量精确描述这一过程：
 - 目标保持率默认 0.9（90%的卡片在到期日仍可回忆）
 """
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import IntEnum
 from typing import Optional

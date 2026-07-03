@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_gamification_engine
 from app.db.session import get_db
 from app.engines.gamification import GamificationEngine, StreakInfo
-from app.models import Achievement, User, UserAchievement, UserProfile, UserStreak
+from app.models import Achievement, UserAchievement, UserProfile, UserStreak
 from app.schemas.gamification import (
     AchievementResponse,
     LevelInfoResponse,

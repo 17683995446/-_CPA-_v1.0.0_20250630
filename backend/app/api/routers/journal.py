@@ -10,13 +10,11 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import get_journal_validator
 from app.engines.journal_validator import (
-    EntryDirection,
     JournalEntryLine,
     JournalEntryValidator,
 )
 from app.schemas.journal import (
     CorrectionSuggestionResponse,
-    JournalEntryLineRequest,
     JournalValidationRequest,
     JournalValidationResponse,
     ValidationErrorResponse,

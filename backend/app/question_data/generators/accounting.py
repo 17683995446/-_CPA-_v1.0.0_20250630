@@ -7,10 +7,8 @@ from sqlalchemy.orm import Session
 from app.question_data.helpers import (
     _add_question,
     _ensure_kp,
-    _extract_number,
     _gen_judgment,
     _gen_single_choice,
-    _is_pure_numeric,
     _shuffled_opts,
 )
 
@@ -358,10 +356,10 @@ def gen_accounting_batch3(db: Session, kps: dict[str, int]) -> int:
         total_cost = sum(p * q for p, q in batches)
         total_qty = sum(q for _, q in batches)
         avg_cost = round(total_cost / total_qty, 2)
-        content = f"某企业分批购入存货："
+        content = "某企业分批购入存货："
         for i, (p, q) in enumerate(batches):
             content += f"第{i+1}批{q}件单价{p}元；"
-        content += f"采用加权平均法，存货单位成本为（　）元。"
+        content += "采用加权平均法，存货单位成本为（　）元。"
         wrongs = [str(round(total_cost / total_qty + 0.5, 2)), str(round(batches[0][0], 2)), str(round(total_cost / (total_qty + 10), 2))]
         all_opts = [(str(avg_cost), True)]
         seen = {str(avg_cost)}

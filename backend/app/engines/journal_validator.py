@@ -371,10 +371,10 @@ class JournalEntryValidator:
         """
         if error.error_type == ErrorType.UNBALANCED:
             return (
-                f"借贷不平衡。请检查：\n"
-                f"1. 是否有遗漏的分录行\n"
-                f"2. 金额是否计算正确\n"
-                f"3. 借贷方金额是否相等"
+                "借贷不平衡。请检查：\n"
+                "1. 是否有遗漏的分录行\n"
+                "2. 金额是否计算正确\n"
+                "3. 借贷方金额是否相等"
             )
 
         elif error.error_type == ErrorType.MISSING_DIRECTION:
@@ -389,18 +389,18 @@ class JournalEntryValidator:
             )
 
         elif error.error_type == ErrorType.ZERO_AMOUNT:
-            return f"金额不能为零。请输入有效的金额。"
+            return "金额不能为零。请输入有效的金额。"
 
         elif error.error_type == ErrorType.NEGATIVE_AMOUNT:
             return (
-                f"金额不能为负数。如果需要冲减，请在相反方向记账。"
-                f"例如：冲减银行存款应在贷方记正数，而非在借方记负数。"
+                "金额不能为负数。如果需要冲减，请在相反方向记账。"
+                "例如：冲减银行存款应在贷方记正数，而非在借方记负数。"
             )
 
         elif error.error_type == ErrorType.DUPLICATE_ACCOUNT:
             return (
-                f"同一科目的同一方向不应重复出现。"
-                f"如果需要合并，请将金额相加后记在一行。"
+                "同一科目的同一方向不应重复出现。"
+                "如果需要合并，请将金额相加后记在一行。"
             )
 
         return None

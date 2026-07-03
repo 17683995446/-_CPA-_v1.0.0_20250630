@@ -6,10 +6,10 @@
 - 用户画像记录偏好科目、当前等级、累计经验值
 - 行为日志用于疲劳检测和自适应难度（阶段5 使用）
 """
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base

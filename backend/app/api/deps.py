@@ -2,10 +2,16 @@
 API 依赖注入。
 
 架构规范：
-- 引擎实例通过依赖注入提供给路由，确保单例复用
+- 引擎实例通过 EngineContainer 集中管理，消除全局可变状态
 - 数据库会话通过 FastAPI Depends 注入，每请求独立
+- 所有 get_* 函数保持原有签名，确保路由层零改动兼容
+
+设计原理：
+全局变量 `_fsrs_engine` 等模式存在线程安全和测试隔离问题。
+EngineContainer 将所有引擎实例封装在一个对象中，通过单一全局
+容器引用管理生命周期，测试时可通过 reset_container() 重置。
 """
-import random
+import threading
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,75 +25,134 @@ from app.engines.journal_validator import JournalEntryValidator
 from app.engines.question_gen import QuestionGenerator
 
 
-# ========== 引擎单例 ==========
+class EngineContainer:
+    """引擎实例容器，集中管理所有引擎的单例创建和生命周期。
 
-_fsrs_engine: FSRSEngine | None = None
-_bkt_engine: BKTEngine | None = None
-_question_generator: QuestionGenerator | None = None
-_journal_validator: JournalEntryValidator | None = None
-_gamification_engine: GamificationEngine | None = None
+    线程安全：通过 threading.Lock 保护初始化过程。
+    可测试：通过 reset() 方法清除所有实例，支持测试隔离。
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._fsrs: FSRSEngine | None = None
+        self._bkt: BKTEngine | None = None
+        self._question_gen: QuestionGenerator | None = None
+        self._journal_validator: JournalEntryValidator | None = None
+        self._gamification: GamificationEngine | None = None
+
+    @property
+    def fsrs(self) -> FSRSEngine:
+        if self._fsrs is None:
+            with self._lock:
+                if self._fsrs is None:
+                    self._fsrs = FSRSEngine(
+                        request_retention=settings.FSRS_REQUEST_RETENTION,
+                        maximum_interval=settings.FSRS_MAXIMUM_INTERVAL,
+                    )
+        return self._fsrs
+
+    @property
+    def bkt(self) -> BKTEngine:
+        if self._bkt is None:
+            with self._lock:
+                if self._bkt is None:
+                    self._bkt = BKTEngine(
+                        default_p_init=settings.BKT_DEFAULT_P_INIT,
+                        default_p_transit=settings.BKT_DEFAULT_P_TRANSIT,
+                        default_p_guess=settings.BKT_DEFAULT_P_GUESS,
+                        default_p_slip=settings.BKT_DEFAULT_P_SLIP,
+                    )
+        return self._bkt
+
+    @property
+    def question_generator(self) -> QuestionGenerator:
+        if self._question_gen is None:
+            with self._lock:
+                if self._question_gen is None:
+                    self._question_gen = QuestionGenerator()
+        return self._question_gen
+
+    @property
+    def journal_validator(self) -> JournalEntryValidator:
+        if self._journal_validator is None:
+            with self._lock:
+                if self._journal_validator is None:
+                    self._journal_validator = JournalEntryValidator()
+        return self._journal_validator
+
+    @property
+    def gamification(self) -> GamificationEngine:
+        if self._gamification is None:
+            with self._lock:
+                if self._gamification is None:
+                    engine = GamificationEngine(
+                        xp_per_correct=settings.XP_PER_CORRECT,
+                        xp_per_streak_day=settings.XP_PER_STREAK_DAY,
+                        streak_protection_default=settings.STREAK_PROTECTION_DEFAULT,
+                    )
+                    engine.CRITICAL_CHANCE = settings.GAMIFICATION_CRITICAL_CHANCE
+                    engine.CRITICAL_MULTIPLIER = settings.GAMIFICATION_CRITICAL_MULTIPLIER
+                    engine.BASE_LEVEL_XP = settings.GAMIFICATION_BASE_LEVEL_XP
+                    engine.LEVEL_GROWTH_RATE = settings.GAMIFICATION_LEVEL_GROWTH_RATE
+                    engine.STREAK_PROTECTION_MAX = settings.GAMIFICATION_STREAK_PROTECTION_MAX
+                    engine.XP_STREAK_BONUS_THRESHOLD = settings.GAMIFICATION_STREAK_BONUS_THRESHOLD
+                    self._gamification = engine
+        return self._gamification
+
+    def reset(self) -> None:
+        """清除所有引擎实例，用于测试隔离。"""
+        with self._lock:
+            self._fsrs = None
+            self._bkt = None
+            self._question_gen = None
+            self._journal_validator = None
+            self._gamification = None
+
+
+# 全局容器实例（唯一全局可变状态，通过 reset() 可控）
+_container: EngineContainer = EngineContainer()
+
+
+def get_container() -> EngineContainer:
+    """获取引擎容器实例。测试时可通过 app.dependency_overrides 替换。"""
+    return _container
+
+
+def reset_container() -> None:
+    """重置引擎容器，清除所有单例。用于测试。"""
+    _container.reset()
+
+
+# ========== FastAPI 依赖函数（保持原有签名，路由层零改动） ==========
 
 
 def get_fsrs_engine() -> FSRSEngine:
     """获取 FSRS 引擎单例。"""
-    global _fsrs_engine
-    if _fsrs_engine is None:
-        _fsrs_engine = FSRSEngine(
-            request_retention=settings.FSRS_REQUEST_RETENTION,
-            maximum_interval=settings.FSRS_MAXIMUM_INTERVAL,
-        )
-    return _fsrs_engine
+    return _container.fsrs
 
 
 def get_bkt_engine() -> BKTEngine:
     """获取 BKT 引擎单例。"""
-    global _bkt_engine
-    if _bkt_engine is None:
-        _bkt_engine = BKTEngine(
-            default_p_init=settings.BKT_DEFAULT_P_INIT,
-            default_p_transit=settings.BKT_DEFAULT_P_TRANSIT,
-            default_p_guess=settings.BKT_DEFAULT_P_GUESS,
-            default_p_slip=settings.BKT_DEFAULT_P_SLIP,
-        )
-    return _bkt_engine
+    return _container.bkt
 
 
 def get_question_generator() -> QuestionGenerator:
     """获取出题引擎单例。"""
-    global _question_generator
-    if _question_generator is None:
-        _question_generator = QuestionGenerator()
-    return _question_generator
+    return _container.question_generator
 
 
 def get_journal_validator() -> JournalEntryValidator:
     """获取分录判错引擎单例。"""
-    global _journal_validator
-    if _journal_validator is None:
-        _journal_validator = JournalEntryValidator()
-    return _journal_validator
+    return _container.journal_validator
 
 
 def get_gamification_engine() -> GamificationEngine:
-    """获取游戏化引擎单例，所有参数从 config 注入以消除配置双源。"""
-    global _gamification_engine
-    if _gamification_engine is None:
-        _gamification_engine = GamificationEngine(
-            xp_per_correct=settings.XP_PER_CORRECT,
-            xp_per_streak_day=settings.XP_PER_STREAK_DAY,
-            streak_protection_default=settings.STREAK_PROTECTION_DEFAULT,
-        )
-        # 覆盖引擎类常量，使所有业务参数可由 config 控制
-        _gamification_engine.CRITICAL_CHANCE = settings.GAMIFICATION_CRITICAL_CHANCE
-        _gamification_engine.CRITICAL_MULTIPLIER = settings.GAMIFICATION_CRITICAL_MULTIPLIER
-        _gamification_engine.BASE_LEVEL_XP = settings.GAMIFICATION_BASE_LEVEL_XP
-        _gamification_engine.LEVEL_GROWTH_RATE = settings.GAMIFICATION_LEVEL_GROWTH_RATE
-        _gamification_engine.STREAK_PROTECTION_MAX = settings.GAMIFICATION_STREAK_PROTECTION_MAX
-        _gamification_engine.XP_STREAK_BONUS_THRESHOLD = settings.GAMIFICATION_STREAK_BONUS_THRESHOLD
-    return _gamification_engine
+    """获取游戏化引擎单例。"""
+    return _container.gamification
 
 
 # ========== 通用依赖 ==========
+
 
 def get_user_or_404(
     user_id: int,
