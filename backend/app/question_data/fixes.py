@@ -327,6 +327,10 @@ def _load_static_modules(db: Session) -> int:
                 q.mnemonic = item["mnemonic"]
             if item.get("study_tip"):
                 q.study_tip = item["study_tip"]
+            if item.get("option_analysis"):
+                q.option_analysis = item["option_analysis"]
+            if item.get("exam_point_analysis"):
+                q.exam_point_analysis = item["exam_point_analysis"]
             count += 1
         else:
             # 未匹配到的题目用动态生成兜底

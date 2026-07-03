@@ -52,6 +52,12 @@ class Question(Base):
     # 小贴士（学习建议）
     study_tip: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # 选项分析（逐项分析每个选项对错原因）
+    option_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # 考点分析（本题考查的具体考点深度分析）
+    exam_point_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # 难度 1-5
     difficulty: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
 

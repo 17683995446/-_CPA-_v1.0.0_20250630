@@ -69,7 +69,7 @@ def _migrate_columns() -> None:
         return  # 表不存在，create_all 刚创建，无需迁移
 
     existing_cols = {col["name"] for col in insp.get_columns("questions")}
-    new_cols = ["simple_explanation", "mnemonic", "study_tip"]
+    new_cols = ["simple_explanation", "mnemonic", "study_tip", "option_analysis", "exam_point_analysis"]
 
     with engine.connect() as conn:
         for col in new_cols:
