@@ -63,10 +63,10 @@ class KnowledgeEdge(Base):
     __tablename__ = "knowledge_edges"
 
     source_id: Mapped[int] = mapped_column(
-        ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False, index=True
     )
     target_id: Mapped[int] = mapped_column(
-        ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False, index=True
     )
     relation_type: Mapped[str] = mapped_column(
         String(32), default="prerequisite", nullable=False

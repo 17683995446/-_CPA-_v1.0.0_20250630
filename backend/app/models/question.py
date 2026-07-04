@@ -30,7 +30,7 @@ class Question(Base):
     __tablename__ = "questions"
 
     knowledge_point_id: Mapped[int] = mapped_column(
-        ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False, index=True
     )
     question_type: Mapped[str] = mapped_column(String(32), nullable=False)
 

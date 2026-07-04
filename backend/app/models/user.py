@@ -67,7 +67,7 @@ class UserBehaviorLog(Base):
     __tablename__ = "user_behavior_logs"
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     event_type: Mapped[str] = mapped_column(
         String(32), nullable=False

@@ -103,7 +103,7 @@ function renderReport(report) {
         weakHTML = weakPoints.map((wp, i) => `
             <div style="padding:10px 12px;background:var(--bg-secondary);border-radius:6px;margin-top:6px;border-left:3px solid #ef4444">
                 <div style="font-weight:600;font-size:13px">薄弱点 ${i + 1}</div>
-                <div style="font-size:13px;color:var(--text-muted);margin-top:4px">${wp.description || wp.kp_name || ''}</div>
+                <div style="font-size:13px;color:var(--text-muted);margin-top:4px">${escapeHtml(wp.description || wp.kp_name || '')}</div>
             </div>
         `).join('');
     }
@@ -115,7 +115,7 @@ function renderReport(report) {
             const color = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
             return `
                 <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                    <span style="font-size:12px;width:60px">${subj}</span>
+                    <span style="font-size:12px;width:60px">${escapeHtml(subj)}</span>
                     <div style="flex:1;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">
                         <div style="width:${pct}%;height:100%;background:${color}"></div>
                     </div>
@@ -129,10 +129,10 @@ function renderReport(report) {
         <div style="background:var(--bg-card);border-radius:12px;padding:20px;border:1px solid var(--border-color)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <h3 style="margin:0">📋 学习诊断报告</h3>
-                <span style="font-size:12px;color:var(--text-muted)">${report.created_at ? new Date(report.created_at).toLocaleString('zh-CN') : ''}</span>
+                <span style="font-size:12px;color:var(--text-muted)">${report.created_at ? escapeHtml(new Date(report.created_at).toLocaleString('zh-CN')) : ''}</span>
             </div>
 
-            <div style="font-size:14px;color:var(--text-muted);margin-bottom:16px">${report.summary || ''}</div>
+            <div style="font-size:14px;color:var(--text-muted);margin-bottom:16px">${escapeHtml(report.summary || '')}</div>
 
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
                 <div style="text-align:center;padding:12px;background:var(--bg-secondary);border-radius:8px">
@@ -151,13 +151,13 @@ function renderReport(report) {
 
             ${masteryHTML ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">各科目掌握度</div>${masteryHTML}</div>` : ''}
 
-            ${content.overall_assessment ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">总体评价</div><div style="font-size:13px;line-height:1.6">${content.overall_assessment}</div></div>` : ''}
+            ${content.overall_assessment ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">总体评价</div><div style="font-size:13px;line-height:1.6">${escapeHtml(content.overall_assessment)}</div></div>` : ''}
 
             ${weakHTML ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">薄弱点分析</div>${weakHTML}</div>` : ''}
 
-            ${content.study_plan ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">学习建议</div><div style="font-size:13px;line-height:1.6;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid var(--accent)">${content.study_plan}</div></div>` : ''}
+            ${content.study_plan ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">学习建议</div><div style="font-size:13px;line-height:1.6;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid var(--accent)">${escapeHtml(content.study_plan)}</div></div>` : ''}
 
-            ${content.encouragement ? `<div style="text-align:center;font-size:14px;color:var(--accent);margin-top:8px">${content.encouragement}</div>` : ''}
+            ${content.encouragement ? `<div style="text-align:center;font-size:14px;color:var(--accent);margin-top:8px">${escapeHtml(content.encouragement)}</div>` : ''}
         </div>
     `;
 }
@@ -201,16 +201,16 @@ function renderErrorList(analyses) {
     };
 
     container.innerHTML = analyses.map(a => {
-        const info = typeLabels[a.error_type] || { label: a.error_type, color: '#6b7280' };
+        const info = typeLabels[a.error_type] || { label: escapeHtml(a.error_type), color: '#6b7280' };
         return `
             <div style="padding:12px;background:var(--bg-card);border-radius:8px;margin-top:8px;border:1px solid var(--border-color);border-left:3px solid ${info.color}">
                 <div style="display:flex;justify-content:space-between;align-items:center">
-                    <span style="font-size:13px;font-weight:600;color:${info.color}">${info.label}</span>
-                    <span style="font-size:11px;color:var(--text-muted)">${a.created_at ? new Date(a.created_at).toLocaleDateString('zh-CN') : ''}</span>
+                    <span style="font-size:13px;font-weight:600;color:${info.color}">${escapeHtml(info.label)}</span>
+                    <span style="font-size:11px;color:var(--text-muted)">${a.created_at ? escapeHtml(new Date(a.created_at).toLocaleDateString('zh-CN')) : ''}</span>
                 </div>
-                <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">题目ID: ${a.question_id} | 你的答案: ${a.user_answer}</div>
-                <div style="font-size:13px;margin-top:4px">${a.suggestion}</div>
-                ${a.related_concept ? `<div style="font-size:12px;margin-top:4px;color:var(--accent)">关联: ${a.related_concept}</div>` : ''}
+                <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">题目ID: ${escapeHtml(String(a.question_id))} | 你的答案: ${escapeHtml(a.user_answer)}</div>
+                <div style="font-size:13px;margin-top:4px">${escapeHtml(a.suggestion)}</div>
+                ${a.related_concept ? `<div style="font-size:12px;margin-top:4px;color:var(--accent)">关联: ${escapeHtml(a.related_concept)}</div>` : ''}
             </div>
         `;
     }).join('');
@@ -279,15 +279,15 @@ function renderSimilarResults(results, baseQid) {
     }
 
     container.innerHTML = `
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">基于题目 Q${baseQid} 的语义相似推荐：</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">基于题目 Q${escapeHtml(String(baseQid))} 的语义相似推荐：</div>
         ${results.map((r, i) => `
             <div style="padding:12px;background:var(--bg-card);border-radius:8px;margin-top:8px;border:1px solid var(--border-color)">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <span style="font-size:13px;font-weight:600">Q${r.question_id}</span>
+                    <span style="font-size:13px;font-weight:600">Q${escapeHtml(String(r.question_id))}</span>
                     <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--bg-secondary)">${(r.similarity * 100).toFixed(1)}% 相似</span>
                 </div>
-                <div style="font-size:13px;color:var(--text-muted)">${r.content}</div>
-                ${r.kp_code ? `<div style="font-size:11px;margin-top:4px;color:var(--accent)">${r.kp_code} ${r.kp_name || ''}</div>` : ''}
+                <div style="font-size:13px;color:var(--text-muted)">${escapeHtml(r.content)}</div>
+                ${r.kp_code ? `<div style="font-size:11px;margin-top:4px;color:var(--accent)">${escapeHtml(r.kp_code)} ${escapeHtml(r.kp_name || '')}</div>` : ''}
             </div>
         `).join('')}
     `;
@@ -331,13 +331,13 @@ function renderExplanation(data) {
                 ${badge}
             </div>
 
-            ${data.explanation ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">详细解析</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${data.explanation}</div></div>` : ''}
+            ${data.explanation ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">详细解析</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${escapeHtml(data.explanation)}</div></div>` : ''}
 
-            ${data.simple_explanation ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid #06b6d4"><div style="font-size:12px;font-weight:600;margin-bottom:2px">通俗解释</div><div style="font-size:13px">${data.simple_explanation}</div></div>` : ''}
+            ${data.simple_explanation ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid #06b6d4"><div style="font-size:12px;font-weight:600;margin-bottom:2px">通俗解释</div><div style="font-size:13px">${escapeHtml(data.simple_explanation)}</div></div>` : ''}
 
-            ${data.mnemonic ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid #8b5cf6"><div style="font-size:12px;font-weight:600;margin-bottom:2px">记忆口诀</div><div style="font-size:13px">${data.mnemonic}</div></div>` : ''}
+            ${data.mnemonic ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid #8b5cf6"><div style="font-size:12px;font-weight:600;margin-bottom:2px">记忆口诀</div><div style="font-size:13px">${escapeHtml(data.mnemonic)}</div></div>` : ''}
 
-            ${data.study_tip ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid #22c55e"><div style="font-size:12px;font-weight:600;margin-bottom:2px">学习建议</div><div style="font-size:13px">${data.study_tip}</div></div>` : ''}
+            ${data.study_tip ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid #22c55e"><div style="font-size:12px;font-weight:600;margin-bottom:2px">学习建议</div><div style="font-size:13px">${escapeHtml(data.study_tip)}</div></div>` : ''}
         </div>
     `;
 }

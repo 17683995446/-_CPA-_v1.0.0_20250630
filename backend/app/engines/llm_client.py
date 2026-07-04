@@ -6,9 +6,14 @@ LLM 客户端引擎 — 统一封装大模型调用。
     - 无 API Key 时自动降级为规则逻辑（fallback），不报错
     - 支持 OpenAI 兼容接口（DeepSeek / Qwen / OpenAI 均可）
     - embedding 调用与 chat 调用分离，便于独立缓存
+    - 内置超时、重试、结果缓存机制
 """
+import hashlib
 import json
 import logging
+import re
+import time
+from collections import OrderedDict
 from typing import Any
 
 from openai import OpenAI
@@ -17,19 +22,53 @@ from app.config import settings
 
 logger = logging.getLogger("app.engines.llm_client")
 
+# LRU 缓存上限
+_CACHE_MAX_SIZE = 256
+# LRU 缓存默认 TTL（秒）
+_CACHE_TTL = 3600
+
+
+class LRUCache:
+    """带 TTL 的 LRU 缓存。"""
+
+    def __init__(self, max_size: int = _CACHE_MAX_SIZE, ttl: int = _CACHE_TTL) -> None:
+        self._cache: OrderedDict[str, tuple[Any, float]] = OrderedDict()
+        self._max_size = max_size
+        self._ttl = ttl
+
+    def get(self, key: str) -> Any | None:
+        if key not in self._cache:
+            return None
+        value, ts = self._cache[key]
+        if time.time() - ts > self._ttl:
+            del self._cache[key]
+            return None
+        self._cache.move_to_end(key)
+        return value
+
+    def set(self, key: str, value: Any) -> None:
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        self._cache[key] = (value, time.time())
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
+
 
 class LLMClient:
     """LLM 统一客户端。无 API Key 时所有方法返回 None（降级模式）。"""
 
     def __init__(self) -> None:
         self._client: OpenAI | None = None
+        self._cache = LRUCache()
         if settings.LLM_ENABLED and settings.LLM_API_KEY:
             try:
                 self._client = OpenAI(
                     api_key=settings.LLM_API_KEY,
                     base_url=settings.LLM_BASE_URL,
+                    timeout=30.0,        # 30s 超时，防止长请求阻塞
+                    max_retries=3,        # SDK 内置重试 3 次
                 )
-                logger.info("LLM 客户端已初始化: model=%s, base_url=%s",
+                logger.info("LLM 客户端已初始化: model=%s, base_url=%s, timeout=30s, retries=3",
                             settings.LLM_MODEL, settings.LLM_BASE_URL)
             except Exception as e:
                 logger.warning("LLM 客户端初始化失败，降级为规则模式: %s", e)
@@ -41,6 +80,12 @@ class LLMClient:
         """LLM 是否可用（已配置且初始化成功）。"""
         return self._client is not None
 
+    @staticmethod
+    def _cache_key(messages: list[dict], **kwargs) -> str:
+        """生成缓存键。"""
+        raw = json.dumps({"messages": messages, **kwargs}, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(raw.encode()).hexdigest()
+
     # ===== Chat 对话 =====
 
     def chat(
@@ -48,6 +93,7 @@ class LLMClient:
         messages: list[dict[str, str]],
         temperature: float | None = None,
         max_tokens: int | None = None,
+        use_cache: bool = True,
     ) -> str | None:
         """调用 LLM 对话接口，返回文本。失败时返回 None。
 
@@ -55,6 +101,7 @@ class LLMClient:
             messages: OpenAI 格式的消息列表
             temperature: 采样温度，None 时使用全局默认
             max_tokens: 最大输出 token 数
+            use_cache: 是否使用缓存（默认 True）
 
         Returns:
             LLM 生成的文本，或 None（降级/失败时）
@@ -62,18 +109,32 @@ class LLMClient:
         if not self.available:
             return None
 
+        temp = temperature or settings.LLM_TEMPERATURE
+        tokens = max_tokens or settings.LLM_MAX_TOKENS
+        cache_key = self._cache_key(messages, temperature=temp, max_tokens=tokens)
+
+        # 查缓存
+        if use_cache:
+            cached = self._cache.get(cache_key)
+            if cached is not None:
+                logger.debug("LLM chat 命中缓存")
+                return cached
+
         try:
             resp = self._client.chat.completions.create(
                 model=settings.LLM_MODEL,
                 messages=messages,
-                temperature=temperature or settings.LLM_TEMPERATURE,
-                max_tokens=max_tokens or settings.LLM_MAX_TOKENS,
+                temperature=temp,
+                max_tokens=tokens,
             )
             content = resp.choices[0].message.content
             # 记录 token 使用量
             if resp.usage:
                 logger.debug("LLM 调用: input=%d tokens, output=%d tokens",
                              resp.usage.prompt_tokens, resp.usage.completion_tokens)
+            # 写缓存
+            if use_cache and content:
+                self._cache.set(cache_key, content)
             return content
         except Exception as e:
             logger.warning("LLM chat 调用失败: %s", e)
@@ -83,13 +144,14 @@ class LLMClient:
         self,
         messages: list[dict[str, str]],
         temperature: float | None = None,
+        use_cache: bool = True,
     ) -> dict | None:
         """调用 LLM 并解析 JSON 输出。
 
         在 prompt 中要求 LLM 返回纯 JSON，此方法负责解析。
         解析失败时返回 None。
         """
-        raw = self.chat(messages, temperature=temperature, max_tokens=settings.LLM_MAX_TOKENS)
+        raw = self.chat(messages, temperature=temperature, max_tokens=settings.LLM_MAX_TOKENS, use_cache=use_cache)
         if not raw:
             return None
         # 尝试提取 JSON（LLM 可能包裹 ```json ... ``` 标记）
@@ -105,29 +167,25 @@ class LLMClient:
         except json.JSONDecodeError:
             pass
 
-        # 尝试提取第一个 { ... } 块（LLM 可能在 JSON 前后加了文字）
-        import re
-        json_match = re.search(r'\{[^{}]*\}', raw, re.DOTALL)
-        if not json_match:
-            # 尝试匹配嵌套 JSON
-            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        # 尝试提取 JSON 块（支持嵌套花括号）
+        # 先尝试匹配最外层 { ... }
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group())
             except json.JSONDecodeError:
                 pass
 
-        # 尝试修复常见 JSON 格式错误（缺少逗号、引号等）
-        fixed = raw
-        # 修复 "key": "value" "key2" 之间缺少逗号
-        fixed = re.sub(r'"\s+"\s*"', '", "', fixed)
-        # 修复 } { 之间缺少逗号
-        fixed = re.sub(r'\}\s*\{', '}, {', fixed)
-        try:
-            return json.loads(fixed)
-        except json.JSONDecodeError:
-            logger.warning("LLM 返回内容无法解析为 JSON: %s", raw[:200])
-            return None
+        # 尝试匹配无嵌套的简单 { ... }
+        json_match = re.search(r'\{[^{}]*\}', raw, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError:
+                pass
+
+        logger.warning("LLM 返回内容无法解析为 JSON: %s", raw[:200])
+        return None
 
     # ===== Embedding 向量 =====
 

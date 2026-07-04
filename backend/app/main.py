@@ -73,32 +73,48 @@ async def lifespan(app: FastAPI):
                            stored_version, settings.QUESTION_DB_VERSION)
             # 删除旧题目和知识点（保留用户学习记录）
             # 先删除 LLM 关联表（有外键指向 questions），再删选项和题目
+            # 事务保护：若重建失败则回滚，避免旧数据已删新数据未生的不一致状态
             from app.models import QuestionOption, KnowledgePoint, QuestionEmbedding, ErrorAnalysis
-            db.query(ErrorAnalysis).delete()
-            db.query(QuestionEmbedding).delete()
-            db.query(QuestionOption).delete()
-            db.query(Question).delete()
-            db.query(KnowledgePoint).delete()
-            db.commit()
-            q_count = 0
-            # 版本不匹配时强制重新生成种子数据
-            run_seed(db)
+            try:
+                db.query(ErrorAnalysis).delete()
+                db.query(QuestionEmbedding).delete()
+                db.query(QuestionOption).delete()
+                db.query(Question).delete()
+                db.query(KnowledgePoint).delete()
+                db.commit()
+                q_count = 0
+                # 版本不匹配时强制重新生成种子数据
+                run_seed(db)
+            except Exception as e:
+                db.rollback()
+                logger.error("题库重建失败，已回滚: %s", e)
+                raise
         elif q_count == 0 and settings.AUTO_SEED_ON_STARTUP:
             run_seed(db)
 
         if (version_mismatch or q_count < settings.QUESTION_BANK_THRESHOLD) and settings.AUTO_SEED_ON_STARTUP:
             logger.info("题库仅 %d 题，开始批量生成...", q_count)
-            generate_mass_questions(db)
-            final_count = db.query(Question).count()
-            logger.info("题库生成完成，共 %d 题", final_count)
+            try:
+                generate_mass_questions(db)
+                final_count = db.query(Question).count()
+                logger.info("题库生成完成，共 %d 题", final_count)
+            except Exception as e:
+                db.rollback()
+                logger.error("批量生成题目失败，已回滚: %s", e)
+                raise
         elif version_mismatch:
             # AUTO_SEED_ON_STARTUP=false 但版本不匹配：也必须重建
             logger.info("版本不匹配，强制重建题库...")
-            if q_count == 0:
-                run_seed(db)
-            generate_mass_questions(db)
-            final_count = db.query(Question).count()
-            logger.info("题库重建完成，共 %d 题", final_count)
+            try:
+                if q_count == 0:
+                    run_seed(db)
+                generate_mass_questions(db)
+                final_count = db.query(Question).count()
+                logger.info("题库重建完成，共 %d 题", final_count)
+            except Exception as e:
+                db.rollback()
+                logger.error("版本重建失败，已回滚: %s", e)
+                raise
 
         # 写入当前版本号
         version_file.write_text(settings.QUESTION_DB_VERSION, encoding="utf-8")
@@ -107,7 +123,7 @@ async def lifespan(app: FastAPI):
         fix_stats = fix_existing_database(db)
         dedup = fix_stats.get("dedup_fixed", 0)
         suffix_cleaned = fix_stats.get("suffix_cleaned", 0)
-        if fix_stats["judgment_fixed"] > 0 or fix_stats["answer_fixed"] > 0 or dedup > 0 or suffix_cleaned > 0:
+        if fix_stats.get("judgment_fixed", 0) > 0 or fix_stats.get("answer_fixed", 0) > 0 or dedup > 0 or suffix_cleaned > 0:
             logger.info("题库修复: 打乱%d题, 判断题修复%d题, 答案修正%d题, 选项去重%d题, 后缀清理%d题",
                         fix_stats["shuffled"], fix_stats["judgment_fixed"],
                         fix_stats["answer_fixed"], dedup, suffix_cleaned)

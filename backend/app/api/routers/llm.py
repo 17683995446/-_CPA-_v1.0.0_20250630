@@ -14,6 +14,8 @@ LLM 分析路由 — 智能分析相关 API 端点。
     GET  /api/llm/report/{user_id}/history  报告历史
     GET  /api/llm/status                    LLM 状态查询
 """
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -30,7 +32,7 @@ router = APIRouter(prefix="/api/llm", tags=["智能分析"])
 # ===== LLM 状态 =====
 
 @router.get("/status")
-async def llm_status():
+def llm_status():
     """查询 LLM 服务状态。"""
     return {
         "available": llm_client.available,
@@ -41,14 +43,14 @@ async def llm_status():
 # ===== 相似题推荐 =====
 
 @router.post("/similarity/build")
-async def build_similarity_index(db: Session = Depends(get_db)):
+def build_similarity_index(db: Session = Depends(get_db)):
     """构建全题库 embedding 索引（一次性操作）。"""
     stats = similarity_engine.build_index(db)
     return {"code": 200, "data": stats}
 
 
 @router.get("/similarity/{question_id}")
-async def recommend_similar(
+def recommend_similar(
     question_id: int,
     top_k: int = Query(5, ge=1, le=20),
     same_kp: bool = Query(False),
@@ -62,7 +64,7 @@ async def recommend_similar(
 # ===== 智能解析增强 =====
 
 @router.post("/explanation/batch")
-async def batch_enhance_explanation(
+def batch_enhance_explanation(
     max_total: int = Query(100, ge=1, le=1000),
     only_short: bool = Query(True),
     db: Session = Depends(get_db),
@@ -73,7 +75,7 @@ async def batch_enhance_explanation(
 
 
 @router.post("/explanation/{question_id}")
-async def enhance_explanation(question_id: int, db: Session = Depends(get_db)):
+def enhance_explanation(question_id: int, db: Session = Depends(get_db)):
     """增强单道题目的解析（按需调用）。"""
     result = explanation_engine.enhance_question(db, question_id)
     if result is None:
@@ -84,7 +86,7 @@ async def enhance_explanation(question_id: int, db: Session = Depends(get_db)):
 # ===== 错题归因分析 =====
 
 @router.post("/error-analysis")
-async def analyze_error(
+def analyze_error(
     user_id: int,
     question_id: int,
     user_answer: str,
@@ -107,7 +109,7 @@ async def analyze_error(
 
 
 @router.get("/error-analysis/{user_id}")
-async def get_error_analyses(
+def get_error_analyses(
     user_id: int,
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -118,7 +120,7 @@ async def get_error_analyses(
 
 
 @router.get("/error-analysis/{user_id}/stats")
-async def get_error_stats(user_id: int, db: Session = Depends(get_db)):
+def get_error_stats(user_id: int, db: Session = Depends(get_db)):
     """获取学生错误类型分布统计。"""
     data = error_analysis_engine.get_error_type_stats(db, user_id)
     return {"code": 200, "data": data}
@@ -127,14 +129,13 @@ async def get_error_stats(user_id: int, db: Session = Depends(get_db)):
 # ===== 学习诊断报告 =====
 
 @router.post("/report/{user_id}")
-async def generate_report(
+def generate_report(
     user_id: int,
     report_type: str = Query("on_demand", pattern="^(weekly|monthly|on_demand)$"),
     db: Session = Depends(get_db),
 ):
     """生成学习诊断报告。"""
     record = report_engine.generate_report(db, user_id, report_type)
-    import json
     return {
         "code": 200,
         "data": {
@@ -150,7 +151,7 @@ async def generate_report(
 
 
 @router.get("/report/{user_id}/latest")
-async def get_latest_report(user_id: int, db: Session = Depends(get_db)):
+def get_latest_report(user_id: int, db: Session = Depends(get_db)):
     """获取学生最近的诊断报告。"""
     data = report_engine.get_latest_report(db, user_id)
     if data is None:
@@ -159,7 +160,7 @@ async def get_latest_report(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/report/{user_id}/history")
-async def get_report_history(
+def get_report_history(
     user_id: int,
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),

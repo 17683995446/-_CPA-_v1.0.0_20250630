@@ -5,8 +5,10 @@
 - 使用 bcrypt 加 salt 哈希，替代不安全的裸 sha256
 - 提供统一的 hash_password / verify_password 接口
 - 向后兼容：能验证旧的 sha256 哈希（迁移期间）
+- 使用恒定时间比较防止时序侧信道攻击
 """
 import hashlib
+import hmac
 
 import bcrypt
 
@@ -23,6 +25,7 @@ def verify_password(password: str, password_hash: str) -> bool:
     验证密码是否匹配。
 
     向后兼容：先尝试 bcrypt，若哈希长度为 64（sha256 hexdigest）则回退到旧逻辑。
+    所有比较均使用恒定时间比较（hmac.compare_digest）防止时序攻击。
     """
     # bcrypt 哈希以 $2b$ 开头
     if password_hash.startswith("$2"):
@@ -34,8 +37,9 @@ def verify_password(password: str, password_hash: str) -> bool:
         except (ValueError, TypeError):
             return False
 
-    # 兼容旧的 sha256 哈希（迁移期间）
+    # 兼容旧的 sha256 哈希（迁移期间），使用恒定时间比较
     if len(password_hash) == 64:
-        return hashlib.sha256(password.encode("utf-8")).hexdigest() == password_hash
+        computed = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(computed, password_hash)
 
     return False

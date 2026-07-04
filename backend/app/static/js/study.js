@@ -28,15 +28,16 @@ function renderStudyKPs() {
     });
     let html = '';
     for (const [subject, kpList] of Object.entries(subjects)) {
-        html += `<div class="kp-group-header subj-${subject}"><span>${subject}</span><span class="kp-group-count">${kpList.length} 个知识点</span></div>`;
+        html += `<div class="kp-group-header subj-${escapeHtml(subject)}"><span>${escapeHtml(subject)}</span><span class="kp-group-count">${kpList.length} 个知识点</span></div>`;
         kpList.forEach(kp => {
             const stars = '★'.repeat(kp.difficulty) + '☆'.repeat(5 - kp.difficulty);
+            // 使用 data 属性传参，避免 onclick 字符串注入
             html += `
-                <div class="kp-item-enhanced subj-${kp.subject}" onclick="startStudy(${kp.id}, '${kp.code}', '${kp.subject}')" style="margin-bottom:8px">
-                    <span class="kp-subj-tag">${kp.code}</span>
+                <div class="kp-item-enhanced subj-${escapeHtml(kp.subject)}" data-kp-id="${kp.id}" data-kp-code="${escapeHtml(kp.code)}" data-kp-subject="${escapeHtml(kp.subject)}" style="margin-bottom:8px">
+                    <span class="kp-subj-tag">${escapeHtml(kp.code)}</span>
                     <div class="kp-body">
-                        <div class="kp-title">${kp.name}</div>
-                        <div class="kp-desc">${kp.chapter || ''}</div>
+                        <div class="kp-title">${escapeHtml(kp.name)}</div>
+                        <div class="kp-desc">${escapeHtml(kp.chapter || '')}</div>
                     </div>
                     <span class="kp-diff-stars" style="color:var(--warning)">${stars}</span>
                 </div>
@@ -44,6 +45,16 @@ function renderStudyKPs() {
         });
     }
     listEl.innerHTML = html;
+    // 事件委托绑定点击
+    listEl.querySelectorAll('.kp-item-enhanced').forEach(el => {
+        el.addEventListener('click', function() {
+            startStudy(
+                parseInt(this.dataset.kpId),
+                this.dataset.kpCode,
+                this.dataset.kpSubject
+            );
+        });
+    });
 }
 
 async function loadStudyPage() {
@@ -132,20 +143,20 @@ function displayQuestion(q) {
         <div class="question-meta">
             ${sourceLabel}
             ${yearLabel}
-            <span class="badge badge-subject">${q.subject || '综合'}</span>
+            <span class="badge badge-subject">${escapeHtml(q.subject || '综合')}</span>
             <span class="badge badge-type">${getTypeName(q.question_type)}</span>
             <span class="badge badge-difficulty">${diffStars} 难度${diff}</span>
             ${pointLabel}
         </div>
-        <div class="question-content">${q.content}</div>
+        <div class="question-content">${escapeHtml(q.content)}</div>
     `;
     if (q.options && q.options.length > 0) {
         html += '<div class="options-list">';
         q.options.forEach((opt, i) => {
             html += `
                 <div class="option-item" onclick="selectOption(${i})" id="opt-${i}">
-                    <div class="option-label">${opt.label}</div>
-                    <span>${opt.content}</span>
+                    <div class="option-label">${escapeHtml(opt.label)}</div>
+                    <span>${escapeHtml(opt.content)}</span>
                 </div>
             `;
         });
@@ -215,14 +226,14 @@ async function submitAnswer() {
     const mnemonic = currentQuestion.mnemonic || '';
     const studyTip = currentQuestion.study_tip || '';
 
-    // 构建四个解析卡片
-    let explHtml = `<p style="margin-bottom:10px"><strong>✅ 答案：${answerDisplay}</strong></p>`;
+    // 构建四个解析卡片（所有内容经 escapeHtml 转义防止 XSS）
+    let explHtml = `<p style="margin-bottom:10px"><strong>✅ 答案：${escapeHtml(answerDisplay)}</strong></p>`;
 
     // 模块1：详细解析
     if (explanation) {
         explHtml += `<div class="expl-card expl-detail">
             <div class="expl-card-title">📖 详细解析</div>
-            <div class="expl-card-body">${explanation.split('\n').map(l => `<p>${l}</p>`).join('')}</div>
+            <div class="expl-card-body">${explanation.split('\n').map(l => `<p>${escapeHtml(l)}</p>`).join('')}</div>
         </div>`;
     }
 
@@ -230,7 +241,7 @@ async function submitAnswer() {
     if (simpleExpl) {
         explHtml += `<div class="expl-card expl-simple">
             <div class="expl-card-title">💡 通俗解释</div>
-            <div class="expl-card-body">${simpleExpl}</div>
+            <div class="expl-card-body">${escapeHtml(simpleExpl)}</div>
         </div>`;
     }
 
@@ -238,7 +249,7 @@ async function submitAnswer() {
     if (mnemonic) {
         explHtml += `<div class="expl-card expl-mnemonic">
             <div class="expl-card-title">🧠 记忆口诀</div>
-            <div class="expl-card-body">${mnemonic}</div>
+            <div class="expl-card-body">${escapeHtml(mnemonic)}</div>
         </div>`;
     }
 
@@ -246,7 +257,7 @@ async function submitAnswer() {
     if (studyTip) {
         explHtml += `<div class="expl-card expl-tip">
             <div class="expl-card-title">📌 小贴士</div>
-            <div class="expl-card-body">${studyTip}</div>
+            <div class="expl-card-body">${escapeHtml(studyTip)}</div>
         </div>`;
     }
 

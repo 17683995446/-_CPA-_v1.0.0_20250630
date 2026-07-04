@@ -44,10 +44,14 @@ async function loadDashboard() {
     let todayMinutes = 0;
     try {
         const sessions = await api('GET', `/api/study/${currentUser.id}/sessions`);
+        // 缓存会话数据供图表使用（替代 Math.random 伪造数据）
+        window._studySessions = sessions;
         todayMinutes = sessions
             .filter(s => s.started_at && s.started_at.startsWith(todayStr))
             .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
-    } catch {}
+    } catch (e) {
+        console.warn('加载学习会话失败:', e);
+    }
     const dailyPct = Math.min(100, Math.round(todayMinutes / goal * 100));
     document.getElementById('daily-goal-text').textContent = `每日目标：学习 ${goal} 分钟　|　今日已学 ${todayMinutes} 分钟`;
     document.getElementById('daily-progress').style.width = `${dailyPct}%`;
@@ -185,17 +189,36 @@ async function renderDashboardCharts() {
         });
     } catch (e) { console.error('chart-types', e); }
 
-    // === 图表3：近7天学习趋势（折线图） ===
+    // === 图表3：近7天学习趋势（折线图，真实数据） ===
     try {
         const days = [];
         const xpData = [];
         const today = new Date();
+
+        // 构建最近7天日期映射
+        const dateMap = {};
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
-            days.push(`${d.getMonth() + 1}/${d.getDate()}`);
-            xpData.push(Math.floor(Math.random() * 80) + 20);
+            const label = `${d.getMonth() + 1}/${d.getDate()}`;
+            days.push(label);
+            dateMap[label] = 0;
         }
+
+        // 从学习会话数据中聚合每日 XP
+        if (window._studySessions) {
+            window._studySessions.forEach(s => {
+                if (s.xp_earned && s.started_at) {
+                    const d = new Date(s.started_at);
+                    const label = `${d.getMonth() + 1}/${d.getDate()}`;
+                    if (label in dateMap) {
+                        dateMap[label] += s.xp_earned;
+                    }
+                }
+            });
+        }
+
+        days.forEach(d => xpData.push(dateMap[d]));
 
         _destroyChart('chart-study-trend');
         _charts['chart-study-trend'] = new Chart(document.getElementById('chart-study-trend'), {

@@ -119,14 +119,15 @@ class Settings:
 
         # --- LLM 配置 ---
         # 使用 OpenAI 兼容接口，支持 DeepSeek / Qwen / OpenAI 等
-        self.LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
-        self.LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "https://api.siliconflow.cn/v1")
-        self.LLM_MODEL: str = os.getenv("LLM_MODEL", "Qwen/Qwen2.5-14B-Instruct")
-        self.LLM_EMBEDDING_MODEL: str = os.getenv("LLM_EMBEDDING_MODEL", "BAAI/bge-m3")
-        self.LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
-        self.LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
-        self.LLM_EMBEDDING_DIM: int = int(os.getenv("LLM_EMBEDDING_DIM", "1024"))
-        self.LLM_ENABLED: bool = os.getenv("LLM_ENABLED", "false").lower() == "true"
+        # 统一走 _get_env，确保类型转换和默认值处理一致
+        self.LLM_API_KEY: str = _get_env("LLM_API_KEY", "", str)
+        self.LLM_BASE_URL: str = _get_env("LLM_BASE_URL", "https://api.siliconflow.cn/v1", str)
+        self.LLM_MODEL: str = _get_env("LLM_MODEL", "Qwen/Qwen2.5-14B-Instruct", str)
+        self.LLM_EMBEDDING_MODEL: str = _get_env("LLM_EMBEDDING_MODEL", "BAAI/bge-m3", str)
+        self.LLM_MAX_TOKENS: int = _get_env("LLM_MAX_TOKENS", 2048, int)
+        self.LLM_TEMPERATURE: float = _get_env("LLM_TEMPERATURE", 0.3, float)
+        self.LLM_EMBEDDING_DIM: int = _get_env("LLM_EMBEDDING_DIM", 1024, int)
+        self.LLM_ENABLED: bool = _get_env("LLM_ENABLED", False, bool)
 
         # --- 日志配置 ---
         self.LOG_LEVEL: str = _get_env("LOG_LEVEL", "DEBUG" if self.DEBUG else "INFO", str)
@@ -175,6 +176,17 @@ class Settings:
         # 临界概率应在 [0, 1) 区间
         if not 0 <= self.GAMIFICATION_CRITICAL_CHANCE < 1:
             errors.append(f"GAMIFICATION_CRITICAL_CHANCE 必须在 [0, 1) 区间，当前值: {self.GAMIFICATION_CRITICAL_CHANCE}")
+
+        # LLM 配置校验
+        if self.LLM_ENABLED:
+            if not self.LLM_API_KEY:
+                errors.append("LLM_ENABLED=true 但 LLM_API_KEY 为空")
+            if not 0 <= self.LLM_TEMPERATURE <= 2:
+                errors.append(f"LLM_TEMPERATURE 必须在 [0, 2] 区间，当前值: {self.LLM_TEMPERATURE}")
+            if self.LLM_MAX_TOKENS <= 0:
+                errors.append(f"LLM_MAX_TOKENS 必须为正整数，当前值: {self.LLM_MAX_TOKENS}")
+            if self.LLM_EMBEDDING_DIM <= 0:
+                errors.append(f"LLM_EMBEDDING_DIM 必须为正整数，当前值: {self.LLM_EMBEDDING_DIM}")
 
         return errors
 

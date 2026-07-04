@@ -21,6 +21,13 @@ class UserCreate(BaseModel):
     daily_goal_minutes: int = Field(60, ge=10, le=480, description="每日学习目标（分钟）")
 
 
+class UserLogin(BaseModel):
+    """用户登录请求。"""
+
+    username: str = Field(..., min_length=1, max_length=64, description="用户名")
+    password: str = Field(..., min_length=1, max_length=128, description="密码")
+
+
 class UserResponse(BaseModel):
     """用户信息响应。"""
 

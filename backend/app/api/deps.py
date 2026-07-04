@@ -89,12 +89,13 @@ class EngineContainer:
                         xp_per_correct=settings.XP_PER_CORRECT,
                         xp_per_streak_day=settings.XP_PER_STREAK_DAY,
                         streak_protection_default=settings.STREAK_PROTECTION_DEFAULT,
+                        critical_chance=settings.GAMIFICATION_CRITICAL_CHANCE,
+                        critical_multiplier=settings.GAMIFICATION_CRITICAL_MULTIPLIER,
+                        base_level_xp=settings.GAMIFICATION_BASE_LEVEL_XP,
+                        level_growth_rate=settings.GAMIFICATION_LEVEL_GROWTH_RATE,
+                        streak_protection_max=settings.GAMIFICATION_STREAK_PROTECTION_MAX,
                     )
-                    engine.CRITICAL_CHANCE = settings.GAMIFICATION_CRITICAL_CHANCE
-                    engine.CRITICAL_MULTIPLIER = settings.GAMIFICATION_CRITICAL_MULTIPLIER
-                    engine.BASE_LEVEL_XP = settings.GAMIFICATION_BASE_LEVEL_XP
-                    engine.LEVEL_GROWTH_RATE = settings.GAMIFICATION_LEVEL_GROWTH_RATE
-                    engine.STREAK_PROTECTION_MAX = settings.GAMIFICATION_STREAK_PROTECTION_MAX
+                    # XP_STREAK_BONUS_THRESHOLD 仍为类属性（不影响隔离）
                     engine.XP_STREAK_BONUS_THRESHOLD = settings.GAMIFICATION_STREAK_BONUS_THRESHOLD
                     self._gamification = engine
         return self._gamification

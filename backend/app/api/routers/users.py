@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models import User, UserProfile
 from app.schemas.user import (
     UserCreate,
+    UserLogin,
     UserProfileResponse,
     UserProfileUpdate,
     UserResponse,
@@ -24,16 +25,12 @@ router = APIRouter(prefix="/api/users", tags=["用户管理"])
 
 
 @router.post("/login")
-def login(
-    username: str = Query(..., description="用户名"),
-    password: str = Query(..., description="密码"),
-    db: Session = Depends(get_db),
-) -> dict:
-    """用户登录（验证密码）。"""
-    user = db.query(User).filter(User.username == username).first()
+def login(req: UserLogin, db: Session = Depends(get_db)) -> dict:
+    """用户登录（验证密码，密码通过 JSON body 传输）。"""
+    user = db.query(User).filter(User.username == req.username).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
-    if not verify_password(password, user.password_hash):
+    if not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="密码错误")
     return {"id": user.id, "username": user.username, "email": user.email}
 

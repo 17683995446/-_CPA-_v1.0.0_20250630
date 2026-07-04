@@ -21,7 +21,7 @@ class StudySession(Base):
     __tablename__ = "study_sessions"
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     subject: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 

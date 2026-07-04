@@ -47,10 +47,10 @@ class UserAchievement(Base):
     __tablename__ = "user_achievements"
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     achievement_id: Mapped[int] = mapped_column(
-        ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
 

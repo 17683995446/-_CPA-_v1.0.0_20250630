@@ -114,23 +114,3 @@ class MasteryRepository(BaseRepository[UserMastery]):
                 select(UserMastery).where(UserMastery.user_id == user_id)
             ).all()
         )
-
-
-# ========== 依赖注入函数 ==========
-
-def get_user_repository(db: Session = None) -> UserRepository:
-    """获取用户仓库实例。配合 FastAPI Depends 使用。"""
-    from app.db.session import get_db
-    from fastapi import Depends
-    if db is None:
-        db = Depends(get_db)
-    return UserRepository(db)
-
-
-def get_question_repository(db: Session = None) -> QuestionRepository:
-    """获取题目仓库实例。"""
-    from app.db.session import get_db
-    from fastapi import Depends
-    if db is None:
-        db = Depends(get_db)
-    return QuestionRepository(db)

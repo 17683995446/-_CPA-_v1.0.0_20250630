@@ -32,7 +32,7 @@ class UserMastery(Base):
     )
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     knowledge_point_id: Mapped[int] = mapped_column(
         ForeignKey("knowledge_points.id", ondelete="CASCADE"), nullable=False

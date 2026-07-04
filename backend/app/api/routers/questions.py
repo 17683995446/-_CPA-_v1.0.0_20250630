@@ -43,19 +43,21 @@ def get_random_question(
     subject: str | None = None,
     db: Session = Depends(get_db),
 ) -> QuestionResponse:
-    """随机获取一道题库题目。"""
+    """随机获取一道题库题目（使用 SQL ORDER BY RANDOM() 避免全表加载）。"""
+    from sqlalchemy import func
+
     query = db.query(Question)
     if subject:
         query = query.join(KnowledgePoint).filter(KnowledgePoint.subject == subject)
 
-    questions = query.all()
-    if not questions:
+    # 使用数据库层面的随机排序，只取1条，避免加载全表
+    q = query.order_by(func.random()).first()
+    if q is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="题库中暂无题目",
         )
 
-    q = random.choice(questions)
     return question_to_response(q)
 
 

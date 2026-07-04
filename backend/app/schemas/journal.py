@@ -6,7 +6,7 @@
 - 科目方向：资产/费用借增贷减，负债/权益/收入贷增借减
 - 验证引擎收集所有错误，一次性反馈
 """
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 class JournalEntryLineRequest(BaseModel):
     """会计分录单行请求。"""
 
-    account: str = Field(..., description="科目名称")
-    direction: str = Field(..., description="方向：借 / 贷")
-    amount: float = Field(..., description="金额")
+    account: str = Field(..., min_length=1, max_length=100, description="科目名称")
+    direction: Literal["借", "贷"] = Field(..., description="方向：借 / 贷")
+    amount: float = Field(..., gt=0, description="金额（必须为正数）")
 
 
 class JournalValidationRequest(BaseModel):

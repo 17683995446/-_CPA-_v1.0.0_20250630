@@ -36,6 +36,6 @@ class UpdateSessionRequest(BaseModel):
     """更新学习会话请求（结束会话时调用）。"""
 
     ended_at: Optional[datetime] = None
-    questions_answered: Optional[int] = None
-    correct_count: Optional[int] = None
-    xp_earned: Optional[int] = None
+    questions_answered: Optional[int] = Field(None, ge=0, description="答题数（非负）")
+    correct_count: Optional[int] = Field(None, ge=0, description="正确数（非负）")
+    xp_earned: Optional[int] = Field(None, ge=0, description="获得经验值（非负）")

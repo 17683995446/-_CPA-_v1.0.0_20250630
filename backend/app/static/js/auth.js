@@ -54,9 +54,11 @@ async function doLogin() {
     }
 
     try {
-        // 调用后端登录接口验证密码
-        const res = await fetch(`${API_BASE}/api/users/login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
+        // 调用后端登录接口验证密码（密码通过 JSON body 传输，不暴露在 URL 中）
+        const res = await fetch(`${API_BASE}/api/users/login`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));

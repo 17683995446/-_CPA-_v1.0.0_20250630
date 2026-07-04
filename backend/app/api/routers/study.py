@@ -7,7 +7,7 @@
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_user_or_404
@@ -89,7 +89,7 @@ def update_session(
 @router.get("/{user_id}/sessions", response_model=list[StudySessionResponse])
 def list_user_sessions(
     user_id: int,
-    limit: int = 20,
+    limit: int = Query(20, ge=1, le=100, description="返回条数上限（1-100）"),
     db: Session = Depends(get_db),
 ) -> list[StudySessionResponse]:
     """获取用户的学习会话历史。"""

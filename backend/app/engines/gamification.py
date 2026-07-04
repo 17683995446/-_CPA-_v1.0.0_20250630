@@ -134,9 +134,26 @@ class GamificationEngine:
         xp_per_correct: Optional[int] = None,
         xp_per_streak_day: Optional[int] = None,
         streak_protection_default: Optional[int] = None,
+        critical_chance: Optional[float] = None,
+        critical_multiplier: Optional[float] = None,
+        base_level_xp: Optional[int] = None,
+        level_growth_rate: Optional[float] = None,
+        streak_protection_max: Optional[int] = None,
     ):
-        """初始化引擎，参数可从 config 注入以消除配置双源。"""
+        """初始化引擎，参数可从 config 注入以消除配置双源。
+
+        所有配置参数存为实例属性，避免修改类属性影响其他实例。
+        """
         self.rng = rng or random.Random()
+        # 实例级配置（不修改类属性，避免影响其他实例）
+        self.xp_per_correct = xp_per_correct if xp_per_correct is not None else self.XP_PER_CORRECT
+        self.xp_per_streak_day = xp_per_streak_day if xp_per_streak_day is not None else self.XP_PER_STREAK_DAY
+        self.streak_protection_default = streak_protection_default if streak_protection_default is not None else self.STREAK_PROTECTION_DEFAULT
+        self.critical_chance = critical_chance if critical_chance is not None else self.CRITICAL_CHANCE
+        self.critical_multiplier = critical_multiplier if critical_multiplier is not None else self.CRITICAL_MULTIPLIER
+        self.base_level_xp = base_level_xp if base_level_xp is not None else self.BASE_LEVEL_XP
+        self.level_growth_rate = level_growth_rate if level_growth_rate is not None else self.LEVEL_GROWTH_RATE
+        self.streak_protection_max = streak_protection_max if streak_protection_max is not None else self.STREAK_PROTECTION_MAX
         # 仅在显式传入时覆盖类常量，保持向后兼容
         if xp_per_correct is not None:
             self.XP_PER_CORRECT = xp_per_correct
@@ -182,7 +199,7 @@ class GamificationEngine:
 
             # 检查是否获得保护卡
             if streak.streak_count % self.STREAK_PROTECTION_GAIN_INTERVAL == 0:
-                if streak.protections < self.STREAK_PROTECTION_MAX:
+                if streak.protections < self.streak_protection_max:
                     streak.protections += 1
                     return streak, f"连续学习{streak.streak_count}天！获得保护卡×1"
 
@@ -212,10 +229,10 @@ class GamificationEngine:
     def calculate_streak_xp(self, streak: StreakInfo) -> int:
         """计算连续学习奖励 XP。"""
         if streak.streak_count < self.XP_STREAK_BONUS_THRESHOLD:
-            return streak.streak_count * self.XP_PER_STREAK_DAY
+            return streak.streak_count * self.xp_per_streak_day
         else:
             # 7 天起有额外加成
-            base = streak.streak_count * self.XP_PER_STREAK_DAY
+            base = streak.streak_count * self.xp_per_streak_day
             bonus = (streak.streak_count - self.XP_STREAK_BONUS_THRESHOLD + 1) * 10
             return base + bonus
 
@@ -250,13 +267,13 @@ class GamificationEngine:
             )
 
         # 基础 XP + 难度加成
-        base_xp = self.XP_PER_CORRECT + (difficulty - 1) * 2
+        base_xp = self.xp_per_correct + (difficulty - 1) * 2
 
         # 变比奖励
-        is_critical = self.rng.random() < self.CRITICAL_CHANCE
+        is_critical = self.rng.random() < self.critical_chance
         if is_critical:
-            bonus_xp = int(base_xp * (self.CRITICAL_MULTIPLIER - 1))
-            reason = f"完美！{self.CRITICAL_MULTIPLIER}x 奖励触发！"
+            bonus_xp = int(base_xp * (self.critical_multiplier - 1))
+            reason = f"完美！{self.critical_multiplier}x 奖励触发！"
         else:
             bonus_xp = self.rng.randint(*self.BONUS_RANGE)
             reason = "答对了！"
@@ -286,24 +303,24 @@ class GamificationEngine:
         第 N 级升到 N+1 级需要: BASE * GROWTH^(N-1) XP
         到达第 N 级的累计 XP: BASE * (GROWTH^N - 1) / (GROWTH - 1)
         """
-        if total_xp < self.BASE_LEVEL_XP:
+        if total_xp < self.base_level_xp:
             return LevelInfo(
                 level=1,
                 current_level_xp=total_xp,
-                next_level_xp=self.BASE_LEVEL_XP,
-                progress=total_xp / self.BASE_LEVEL_XP,
+                next_level_xp=self.base_level_xp,
+                progress=total_xp / self.base_level_xp,
             )
 
         # 计算等级
         # 累计 XP 到达 N 级: BASE * (GROWTH^(N-1) - 1) / (GROWTH - 1)
         level = 1
         cumulative = 0
-        level_xp_needed = self.BASE_LEVEL_XP
+        level_xp_needed = self.base_level_xp
 
         while cumulative + level_xp_needed <= total_xp:
             cumulative += level_xp_needed
             level += 1
-            level_xp_needed = int(self.BASE_LEVEL_XP * (self.LEVEL_GROWTH_RATE ** (level - 1)))
+            level_xp_needed = int(self.base_level_xp * (self.level_growth_rate ** (level - 1)))
 
         current_level_xp = total_xp - cumulative
         progress = current_level_xp / level_xp_needed if level_xp_needed > 0 else 0

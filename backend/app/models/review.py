@@ -35,7 +35,7 @@ class ReviewCard(Base):
     __tablename__ = "review_cards"
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     question_id: Mapped[int] = mapped_column(
         ForeignKey("questions.id", ondelete="CASCADE"), nullable=False
@@ -47,7 +47,7 @@ class ReviewCard(Base):
     # FSRS 核心变量
     stability: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     difficulty: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    due: Mapped[date] = mapped_column(Date, nullable=False)
+    due: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     last_review: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     reps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     lapses: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -74,10 +74,10 @@ class ReviewLog(Base):
     __tablename__ = "review_logs"
 
     card_id: Mapped[int] = mapped_column(
-        ForeignKey("review_cards.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("review_cards.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # 评分：1(Again) / 2(Hard) / 3(Good) / 4(Easy)
