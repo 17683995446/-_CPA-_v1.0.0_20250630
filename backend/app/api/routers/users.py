@@ -18,9 +18,24 @@ from app.schemas.user import (
     UserProfileUpdate,
     UserResponse,
 )
-from app.security import hash_password
+from app.security import hash_password, verify_password
 
 router = APIRouter(prefix="/api/users", tags=["用户管理"])
+
+
+@router.post("/login")
+def login(
+    username: str = Query(..., description="用户名"),
+    password: str = Query(..., description="密码"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """用户登录（验证密码）。"""
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="密码错误")
+    return {"id": user.id, "username": user.username, "email": user.email}
 
 
 @router.get("")
@@ -28,7 +43,7 @@ def search_users(
     username: str | None = Query(None, description="按用户名搜索"),
     db: Session = Depends(get_db),
 ) -> list[dict]:
-    """搜索用户列表（用于登录时查找用户）。"""
+    """搜索用户列表（仅返回公开信息，不含密码）。"""
     query = db.query(User)
     if username:
         query = query.filter(User.username == username)

@@ -54,11 +54,15 @@ async function doLogin() {
     }
 
     try {
-        const res = await fetch(`${API_BASE}/api/users?username=${encodeURIComponent(username)}`);
-        if (!res.ok) throw new Error('用户不存在');
-        const users = await res.json();
-        const user = users.find(u => u.username === username);
-        if (!user) throw new Error('用户不存在');
+        // 调用后端登录接口验证密码
+        const res = await fetch(`${API_BASE}/api/users/login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
+            method: 'POST',
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || '登录失败');
+        }
+        const user = await res.json();
 
         currentUser = user;
         localStorage.setItem('cpa_user_id', user.id);

@@ -285,6 +285,14 @@ async function submitAnswer() {
         }
         if (isCorrect) _sessionCorrect++;
 
+        // 答错时自动触发 LLM 错题归因分析（后台异步，不阻塞 UI）
+        if (!isCorrect) {
+            const userAnswer = opt ? (opt.label ? `${opt.label}．${opt.content}` : opt.content) : '';
+            fetch(`${API_BASE}/api/llm/error-analysis?user_id=${currentUser.id}&question_id=${currentQuestion.id}&user_answer=${encodeURIComponent(userAnswer)}`, {
+                method: 'POST',
+            }).catch(() => {}); // 静默失败，不影响答题流程
+        }
+
         document.getElementById('action-bar').innerHTML = `
             <button class="btn btn-primary" onclick="nextQuestion()">下一题</button>
             <button class="btn btn-secondary" onclick="exitStudy()">返回</button>
